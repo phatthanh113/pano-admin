@@ -26,14 +26,12 @@ class HotspotForm
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->live()
-                            ->helperText(fn () => __('forms.panorama_source_help')),
+                            ->live(),
                         Select::make('target_panorama_id')
                             ->label(fn () => __('forms.panorama_target'))
                             ->relationship('targetPanorama', 'name')
                             ->searchable()
-                            ->preload()
-                            ->helperText(fn () => __('forms.panorama_target_help')),
+                            ->preload(),
                         TextInput::make('tooltip')
                             ->label(fn () => __('forms.tooltip'))
                             ->placeholder(fn () => __('forms.tooltip_placeholder'))
@@ -46,7 +44,6 @@ class HotspotForm
                     ]),
 
                 Section::make(fn () => __('forms.section_hotspot_position'))
-                    ->description(fn () => __('forms.section_hotspot_position_desc'))
                     ->components([
                         View::make('filament.forms.components.hotspot-picker')
                             ->view('filament.forms.components.hotspot-picker')
@@ -83,16 +80,14 @@ class HotspotForm
                                     ->numeric()
                                     ->step(0.1)
                                     ->default(0)
-                                    ->suffix('°')
-                                    ->helperText(fn () => __('forms.helper_yaw')),
+                                    ->suffix('°'),
                                 TextInput::make('pitch')
                                     ->label(fn () => __('forms.pitch_vertical'))
                                     ->required()
                                     ->numeric()
                                     ->step(0.1)
                                     ->default(0)
-                                    ->suffix('°')
-                                    ->helperText(fn () => __('forms.helper_pitch')),
+                                    ->suffix('°'),
                             ]),
                     ]),
             ]);

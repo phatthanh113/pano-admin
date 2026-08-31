@@ -29,14 +29,12 @@ class FloorForm
                             if ($b && $b->project_id) $set('project_id', $b->project_id);
                         }
                     })
-                    ->helperText('Chọn để lọc Building. Nếu để trống Building thì floor sẽ vào Default Building của dự án này')
                     ->dehydrated(true),
                 Select::make('building_id')
                     ->label('Building')
                     ->searchable()->preload()
                     ->live()
                     ->placeholder('— Default Building —')
-                    ->helperText('Để trống = tự vào Default Building. Danh sách lọc theo Dự án đã chọn')
                     ->afterStateUpdated(function ($state, callable $set) {
                         if (! empty($state)) {
                             $b = Building::find($state);

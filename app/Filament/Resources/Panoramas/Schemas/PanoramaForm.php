@@ -50,14 +50,13 @@ class PanoramaForm
                                 $bid = $get('building_id');
                                 if (! $bid) return false;
                                 return Building::find($bid)?->type === 'group';
-                            })
-                            ->helperText(fn () => __('forms.floor_group_help')),
+                            }),
                     ]),
 
                 Section::make(fn () => __('forms.section_panorama_info'))
                     ->columns(2)
                     ->components([
-                        TextInput::make('slug')->required()->helperText(fn () => __('forms.slug_help'))->columnSpan(1),
+                        TextInput::make('slug')->required()->columnSpan(1),
                         TextInput::make('name')->label(fn () => __('forms.name'))->required()->columnSpan(1),
                         TextInput::make('code')->label('Code')->placeholder('VD: 南西面'),
                         TextInput::make('number')->numeric()->label(fn () => __('forms.number')),
@@ -65,13 +64,11 @@ class PanoramaForm
                         FileUpload::make('thumbnail')
                             ->label(fn () => __('forms.thumbnail'))
                             ->image()
-                            ->disk('public')->visibility('public')->directory('panoramas/thumbnails')->maxSize(5120)->imagePreviewHeight('150')->columnSpan(1)
-                            ->helperText(fn () => __('forms.thumbnail') === 'Thumbnail' ? 'Auto from Panorama Image if empty' : 'Tự động lấy từ Panorama Image nếu để trống; xóa và up riêng để cập nhật'),
+                            ->disk('public')->visibility('public')->directory('panoramas/thumbnails')->maxSize(5120)->imagePreviewHeight('150')->columnSpan(1),
                         FileUpload::make('url')->label(fn () => __('forms.panorama_image'))->image()->disk('public')->visibility('public')->directory('panoramas')->maxSize(10240)->imagePreviewHeight('150')->required()->columnSpan(1),
                     ]),
 
                 Section::make(fn () => __('forms.section_map'))
-                    ->description(fn () => __('forms.section_map_desc'))
                     ->columnSpanFull()
                     ->columns(1)
                     ->components([
@@ -120,9 +117,9 @@ class PanoramaForm
                             ->columnSpanFull()
                             ->extraAttributes(['class' => 'mt-2'])
                             ->components([
-                                TextInput::make('map_x')->label(fn () => __('forms.map_x'))->numeric()->step(0.1)->suffix('%')->helperText(fn () => __('forms.map_x_help')),
-                                TextInput::make('map_y')->label(fn () => __('forms.map_y'))->numeric()->step(0.1)->suffix('%')->helperText(fn () => __('forms.map_y_help')),
-                                TextInput::make('map_angle')->label(fn () => __('forms.map_angle'))->numeric()->step(1)->suffix('°')->helperText(fn () => __('forms.map_angle_help')),
+                                TextInput::make('map_x')->label(fn () => __('forms.map_x'))->numeric()->step(0.1)->suffix('%'),
+                                TextInput::make('map_y')->label(fn () => __('forms.map_y'))->numeric()->step(0.1)->suffix('%'),
+                                TextInput::make('map_angle')->label(fn () => __('forms.map_angle'))->numeric()->step(1)->suffix('°'),
                             ]),
                     ]),
 
@@ -130,8 +127,8 @@ class PanoramaForm
                     ->columnSpanFull()
                     ->columns(3)
                     ->components([
-                        TextInput::make('yaw')->label(fn () => __('forms.yaw'))->required()->numeric()->default(0)->helperText(fn () => __('forms.yaw_default_help')),
-                        TextInput::make('pitch')->label(fn () => __('forms.pitch'))->required()->numeric()->default(0)->helperText(fn () => __('forms.pitch_default_help')),
+                        TextInput::make('yaw')->label(fn () => __('forms.yaw'))->required()->numeric()->default(0),
+                        TextInput::make('pitch')->label(fn () => __('forms.pitch'))->required()->numeric()->default(0),
                         TextInput::make('sort_order')->label(fn () => __('forms.sort_order'))->required()->numeric()->default(0),
                         Toggle::make('is_active')->label(fn () => __('forms.is_active'))->required()->columnSpanFull(),
                     ]),
