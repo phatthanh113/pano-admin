@@ -1,66 +1,148 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Pano Admin - Laravel + Filament + React Viewer
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> Hệ thống quản lý Panorama 360° với Admin Filament và Frontend React (Photo Sphere Viewer). Frontend React được build vào `public/pano` để chạy same-origin, không CORS.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🇻🇳 Tiếng Việt
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 1. Kiến trúc
+- **Backend:** `pano-admin` (Laravel 11 + Filament 3) - quản lý Project / Building / Floor / Panorama / Hotspot / Video / User / SiteSetting. API: `routes/api.php` (`/api/projects`, `/api/site-settings`, `/api/auth/*`)
+- **Frontend:** `D:\pano` (React 19 + Vite 5 + Three.js + Photo Sphere Viewer) - build ra `dist/` rồi `deploy.ps1` copy vào `pano-admin/public/pano` + `public/assets`. Truy cập: `http://pano-admin.test/` (panorama) vs `http://pano-admin.test/admin` (Filament)
+- **Deploy:** GitHub Actions `.github/workflows/deploy.yml` tự `npm run build` và FTP lên InfinityFree `ftpupload.net` -> `/htdocs`
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 2. Yêu cầu
+- PHP 8.2+, Composer, Node 20+, MySQL 8, Laragon/XAMPP hoặc `php artisan serve`
 
-## Learning Laravel
+### 3. Cài đặt khi clone về
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```bash
+git clone https://github.com/phatthanh113/pano-admin.git
+cd pano-admin
+cp .env.example .env
+# Sửa .env: APP_URL, DB_*, FILESYSTEM_DISK=public
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
+npm install && npm run build
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+**Frontend React (nếu sửa giao diện pano):**
+```bash
+cd D:\pano
+npm install
+npm run deploy   # build + copy dist -> D:\laragon\www\pano-admin\public\pano
+# hoặc npm run dev để dev riêng (Vite proxy /api -> http://pano-admin.test)
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 4. Tài khoản mẫu
+| ID | Password | Role |
+|---|---|---|
+| `admin` | `admin123` (hoặc trong seeder) | `admin` - vào được `/admin` |
+| `demo` | `demo123` | `user` |
+| `viewer` | `viewer123` | `user` |
 
-## Laravel Sponsors
+Tạo user mới qua Filament `Users` hoặc `php artisan tinker`.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 5. Chạy local
+```bash
+# Terminal 1: Laravel
+php artisan serve  # hoặc Laragon -> http://pano-admin.test
 
-### Premium Partners
+# Terminal 2: nếu sửa admin CSS/JS
+npm run dev
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+### 6. Deploy lên InfinityFree (hoặc host khác)
 
-## Contributing
+**Cách A - Tự động qua GitHub Actions (khuyên dùng):**
+1. Tạo repo trống trên GitHub, push code lên
+2. Vào `Settings` -> `Secrets and variables` -> `Actions` -> tạo 4 Secrets:
+   - `FTP_SERVER=ftpupload.net`
+   - `FTP_USERNAME=if0_xxxxxx` (xem trong InfinityFree -> FTP Details)
+   - `FTP_PASSWORD` (mật khẩu hosting)
+   - `FTP_SERVER_DIR=/htdocs/`
+3. Mỗi `git push` lên `main` sẽ tự chạy `deploy.yml` (npm build + FTP sync). Xem log ở tab `Actions`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**Cách B - Thủ công:**
+- `npm run build` (admin) + `D:\pano> npm run deploy` (panorama) -> nén `pano-admin` (trừ `node_modules`, `vendor` nếu host đã có) -> File Manager -> Upload & Unzip đè lên `htdocs`.
 
-## Code of Conduct
+**Đổi host khác:** chỉ đổi `.env` (`APP_URL`, `DB_*`) và 4 Secrets FTP. Nếu dời `pano-admin` sang folder khác, sửa `D:\pano\deploy.ps1:8` `$LaravelPublicPano` thành đường dẫn mới rồi chạy lại `npm run deploy`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 7. Cấu hình quan trọng
+- `php artisan config:cache` sau khi đổi `.env`
+- `public/build` và `vendor` đang `.gitignore` - CI sẽ build lại, không cần commit
+- `SiteSetting` (`Cài đặt chung` trong `/admin`) lưu `company_name`, `logo` - Frontend tự fetch `/api/site-settings` để đổi `document.title` và favicon (`D:\pano\src\hooks\useSiteSettings.jsx`)
 
-## Security Vulnerabilities
+### 8. Tính năng chính
+- TopHeader: Home/Map, Video, Image 2D/360, Pin Google Map, Help, Admin (chỉ `role=admin`), Fullscreen, ☰ ẩn/hiện toàn bộ UI
+- PanoramaViewer: preload + backdrop blur chống đen, zoom 2s vào hotspot rồi sang pano đích kích thước thật, minimap + toolbar trái ẩn/hiện theo ☰
+- Responsive: `responsive.css` + `100dvh`/`viewport-fit=cover`, BuildingSidebar scroll khi nhiều building
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
+
+## 🇬🇧 English
+
+### 1. Architecture
+- **Backend:** `pano-admin` (Laravel 11 + Filament 3) - manages Project/Building/Floor/Panorama/Hotspot/Video/User/SiteSetting. API in `routes/api.php`.
+- **Frontend:** `D:\pano` (React 19 + Vite 5 + Photo Sphere Viewer) - builds to `dist/` then `deploy.ps1` copies to `pano-admin/public/pano`. Served same-origin to avoid CORS.
+- **Deploy:** GitHub Actions `.github/workflows/deploy.yml` runs `npm run build` and FTP deploys to `ftpupload.net` -> `/htdocs`.
+
+### 2. Requirements
+- PHP 8.2+, Composer, Node 20+, MySQL 8
+
+### 3. Setup after clone
+
+```bash
+git clone https://github.com/phatthanh113/pano-admin.git
+cd pano-admin
+cp .env.example .env
+# Edit .env: APP_URL, DB_*, FILESYSTEM_DISK=public
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
+npm install && npm run build
+```
+
+**React Frontend (if editing pano viewer):**
+```bash
+cd D:\pano
+npm install
+npm run deploy  # builds and copies dist -> pano-admin/public/pano
+```
+
+### 4. Demo Accounts
+| ID | Password | Role |
+|---|---|---|
+| `admin` | `admin123` | `admin` - can access `/admin` |
+| `demo` | `demo123` | `user` |
+
+### 5. Run locally
+```bash
+php artisan serve # or Laragon -> http://pano-admin.test
+npm run dev       # for HMR (admin)
+```
+
+### 6. Deploy to another host
+**A - Auto via GitHub Actions:** Create 4 Secrets (`FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `FTP_SERVER_DIR`) in repo Settings -> Secrets. Every `git push` to `main` triggers FTP sync. Check `Actions` tab.
+
+**B - Manual:** Run `npm run build` + `npm run deploy` (in `D:\pano`), zip `pano-admin` and upload via File Manager/FTP.
+
+**Move pano-admin folder:** Update `D:\pano\deploy.ps1:8` `$LaravelPublicPano` to new path, then re-run `npm run deploy`.
+
+### 7. Notes
+- Run `php artisan config:cache` after `.env` changes
+- `public/build` and `vendor` are gitignored - CI builds them
+- `SiteSetting` in `/admin` controls `company_name`/`logo` - frontend fetches `/api/site-settings` to set `document.title`/favicon
+
+### 8. Features
+- TopHeader with role-based Admin button, fullscreen, help
+- PanoramaViewer with 2s zoom-to-hotspot then instant switch (preloaded + blurred backdrop), no black flash
+- Fully responsive (iPhone 13 tested), BuildingSidebar scrollable
+
+---
 
 ## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Laravel MIT. Project specific code as per your team.
