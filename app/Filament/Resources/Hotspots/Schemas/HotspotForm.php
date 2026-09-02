@@ -23,14 +23,16 @@ class HotspotForm
                         Select::make('panorama_id')
                             ->label(fn () => __('forms.panorama_source'))
                             ->relationship('panorama', 'name')
-                            ->searchable()
+                            ->getOptionLabelFromRecordUsing(fn (Panorama $record) => $record->name . ' — ' . ($record->building?->name ?? '-') . ($record->floor ? '/' . $record->floor->name : '') . ' #' . $record->id)
+                            ->searchable(['name', 'slug'])
                             ->preload()
                             ->required()
                             ->live(),
                         Select::make('target_panorama_id')
                             ->label(fn () => __('forms.panorama_target'))
                             ->relationship('targetPanorama', 'name')
-                            ->searchable()
+                            ->getOptionLabelFromRecordUsing(fn (Panorama $record) => $record->name . ' — ' . ($record->building?->name ?? '-') . ($record->floor ? '/' . $record->floor->name : '') . ' #' . $record->id)
+                            ->searchable(['name', 'slug'])
                             ->preload(),
                         TextInput::make('tooltip')
                             ->label(fn () => __('forms.tooltip'))
