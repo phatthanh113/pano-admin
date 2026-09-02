@@ -154,7 +154,10 @@ class PanoramaForm
                                     ->columnSpanFull()
                                     ->viewData(function (Get $get) {
                                         $url = $get('../../url');
-                                        if (blank($url)) {
+                                        if (is_array($url)) {
+                                            $url = $url[0] ?? null;
+                                        }
+                                        if (blank($url) || ! is_string($url)) {
                                             return ['panoramaUrl' => null];
                                         }
                                         $displayUrl = $url;
