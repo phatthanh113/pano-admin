@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Panoramas\Schemas;
 use App\Models\Building;
 use App\Models\Floor;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -131,6 +132,44 @@ class PanoramaForm
                         TextInput::make('pitch')->label(fn () => __('forms.pitch'))->required()->numeric()->default(0),
                         TextInput::make('sort_order')->label(fn () => __('forms.sort_order'))->required()->numeric()->default(0),
                         Toggle::make('is_active')->label(fn () => __('forms.is_active'))->required()->columnSpanFull(),
+                    ]),
+
+                Section::make(fn () => __('forms.section_hotspots') !== 'forms.section_hotspots' ? __('forms.section_hotspots') : 'Hotspots trong Panorama này')
+                    ->description(fn () => __('forms.section_hotspots_desc') !== 'forms.section_hotspots_desc' ? __('forms.section_hotspots_desc') : 'Thêm hotspot ngay trong form này, không cần qua menu Hotspots riêng. Click hotspot sẽ bay tới Target Panorama.')
+                    ->columnSpanFull()
+                    ->collapsed(false)
+                    ->components([
+                        Repeater::make('hotspots')
+                            ->relationship()
+                            ->label('')
+                            ->columns(2)
+                            ->collapsible()
+                            ->collapsed()
+                            ->itemLabel(fn (array $state): ?string => $state['tooltip'] ?? ($state['target_panorama_id'] ? '→ Panorama #'.$state['target_panorama_id'] : 'Hotspot mới'))
+                            ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
+                            ->reorderable()
+                            ->components([
+                                Select::make('target_panorama_id')
+                                    ->label(fn () => __('forms.panorama_target'))
+                                    ->relationship('targetPanorama', 'name')
+                                    ->getOptionLabelFromRecordUsing(fn (\App\Models\Panorama $record) => $record->name . ' — ' . ($record->building?->name ?? '-') . ($record->floor ? '/' . $record->floor->name : '') . ' #' . $record->id)
+                                    ->searchable(['name', 'slug'])
+                                    ->preload()
+                                    ->required()
+                                    ->columnSpan(1),
+                                TextInput::make('tooltip')
+                                    ->label(fn () => __('forms.tooltip'))
+                                    ->placeholder(fn () => __('forms.tooltip_placeholder'))
+                                    ->columnSpan(1),
+                                TextInput::make('yaw')
+                                    ->label(fn () => __('forms.yaw_horizontal'))
+                                    ->required()->numeric()->step(0.1)->default(0)->suffix('°'),
+                                TextInput::make('pitch')
+                                    ->label(fn () => __('forms.pitch_vertical'))
+                                    ->required()->numeric()->step(0.1)->default(0)->suffix('°'),
+                                TextInput::make('sort_order')
+                                    ->label(fn () => __('forms.sort_order'))->numeric()->default(0)->required(),
+                            ]),
                     ]),
             ]);
     }
