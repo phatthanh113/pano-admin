@@ -157,6 +157,20 @@ class PanoramaForm
                                         if (is_array($url)) {
                                             $url = $url[0] ?? null;
                                         }
+                                        // Nếu chưa có url trong form state (khi edit chưa hydrate), fallback lấy từ Panorama đang edit
+                                        if (blank($url) || ! is_string($url)) {
+                                            $recordId = request()->route('record');
+                                            // Khi edit, route record là id panorama
+                                            if ($recordId && is_numeric($recordId)) {
+                                                $panorama = \App\Models\Panorama::find($recordId);
+                                                $url = $panorama?->url;
+                                            }
+                                            // Thử các path khác
+                                            if (blank($url)) {
+                                                $url = $get('../../../url');
+                                                if (is_array($url)) $url = $url[0] ?? null;
+                                            }
+                                        }
                                         if (blank($url) || ! is_string($url)) {
                                             return ['panoramaUrl' => null];
                                         }
