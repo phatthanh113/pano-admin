@@ -27,7 +27,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(\App\Filament\Pages\Auth\CustomLogin::class)
             ->brandName(fn () => \App\Models\SiteSetting::current()->company_name ?: null)
             ->brandLogo(fn () => \App\Models\SiteSetting::current()->logo_url ?: null)
             ->brandLogoHeight(fn () => \App\Models\SiteSetting::current()->logo_url ? '1.75rem' : null)
