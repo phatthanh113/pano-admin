@@ -146,8 +146,14 @@ class PanoramaForm
                                 $url = $get('url');
                                 if (is_array($url)) $url = $url[0] ?? null;
                                 if (blank($url) || ! is_string($url)) {
-                                    $recordId = request()->route('record');
-                                    if ($recordId && is_numeric($recordId)) {
+                                    $routeRecord = request()->route('record');
+                                    $recordId = null;
+                                    if ($routeRecord instanceof \App\Models\Panorama) {
+                                        $recordId = $routeRecord->id;
+                                    } elseif (is_numeric($routeRecord)) {
+                                        $recordId = $routeRecord;
+                                    }
+                                    if ($recordId) {
                                         $panorama = \App\Models\Panorama::find($recordId);
                                         $url = $panorama?->url;
                                     }
@@ -187,9 +193,16 @@ class PanoramaForm
                                         }
                                         // Nếu chưa có url trong form state (khi edit chưa hydrate), fallback lấy từ Panorama đang edit
                                         if (blank($url) || ! is_string($url)) {
-                                            $recordId = request()->route('record');
-                                            // Khi edit, route record là id panorama
-                                            if ($recordId && is_numeric($recordId)) {
+                                            $routeRecord = request()->route('record');
+                                            $recordId = null;
+                                            if ($routeRecord instanceof \App\Models\Panorama) {
+                                                $recordId = $routeRecord->id;
+                                            } elseif (is_numeric($routeRecord)) {
+                                                $recordId = $routeRecord;
+                                            } elseif (is_string($routeRecord) && is_numeric($routeRecord)) {
+                                                $recordId = (int)$routeRecord;
+                                            }
+                                            if ($recordId) {
                                                 $panorama = \App\Models\Panorama::find($recordId);
                                                 $url = $panorama?->url;
                                             }

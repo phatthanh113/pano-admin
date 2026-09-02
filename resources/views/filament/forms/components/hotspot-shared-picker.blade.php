@@ -11,16 +11,36 @@
             newYaw = Math.round(newYaw * 10) / 10;
             newPitch = Math.round(newPitch * 10) / 10;
             newPitch = Math.max(-90, Math.min(90, newPitch));
-            // Tìm repeater item đang mở (không collapsed) hoặc item cuối cùng
-            let targetItem = document.querySelector('.fi-fo-repeater-item:not(.fi-collapsed)'); 
-            if (!targetItem) {
-                const items = document.querySelectorAll('.fi-fo-repeater-item');
-                targetItem = items[items.length - 1];
+            // Tìm hotspot item đang mở (content visible) hoặc fallback lấy input yaw visible cuối cùng
+            let yawInput = null, pitchInput = null;
+            const visibleItems = Array.from(document.querySelectorAll('.fi-fo-repeater-item')).filter(item => {
+                const content = item.querySelector('.fi-fo-repeater-item-content');
+                return content && content.offsetParent !== null && content.offsetHeight > 10;
+            });
+            if (visibleItems.length === 1) {
+                yawInput = visibleItems[0].querySelector('input[wire\\:model*=\".yaw\"]');
+                pitchInput = visibleItems[0].querySelector('input[wire\\:model*=\".pitch\"]');
+            } else if (visibleItems.length > 1) {
+                const lastVisible = visibleItems[visibleItems.length - 1];
+                yawInput = lastVisible.querySelector('input[wire\\:model*=\".yaw\"]');
+                pitchInput = lastVisible.querySelector('input[wire\\:model*=\".pitch\"]');
+            } else {
+                const allYaws = Array.from(document.querySelectorAll('input[wire\\:model*=\".yaw\"]')).filter(el => el.offsetParent !== null);
+                const allPitches = Array.from(document.querySelectorAll('input[wire\\:model*=\".pitch\"]')).filter(el => el.offsetParent !== null);
+                if (allYaws.length) yawInput = allYaws[allYaws.length - 1];
+                if (allPitches.length) pitchInput = allPitches[allPitches.length - 1];
             }
-            if (!targetItem) return;
-            let yawInput = targetItem.querySelector('input[wire\\:model*=\".yaw\"]');
-            let pitchInput = targetItem.querySelector('input[wire\\:model*=\".pitch\"]');
+            // Fallback: lấy item cuối cùng nếu vẫn không tìm thấy
+            if (!yawInput) {
+                const items = document.querySelectorAll('.fi-fo-repeater-item');
+                const last = items[items.length - 1];
+                if (last) {
+                    yawInput = last.querySelector('input[wire\\:model*=\".yaw\"]');
+                    pitchInput = last.querySelector('input[wire\\:model*=\".pitch\"]');
+                }
+            }
             if (yawInput) {
+                yawInput.focus();
                 yawInput.value = newYaw;
                 yawInput.dispatchEvent(new Event('input', { bubbles: true }));
                 yawInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -30,11 +50,6 @@
                 pitchInput.dispatchEvent(new Event('input', { bubbles: true }));
                 pitchInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
-            // Cập nhật chấm đỏ trên ảnh chung
-            this.updateDots();
-        },
-        updateDots() {
-            // Sẽ được Alpine tự cập nhật qua x-bind
         }
     }"
     class="space-y-2 mb-4"
