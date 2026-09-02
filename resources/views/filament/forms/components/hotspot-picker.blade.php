@@ -31,6 +31,7 @@
         @endif
     </div>
 
+    @if($panorama)
     <div class="relative border rounded-lg overflow-hidden bg-gray-50" style="padding:12px;text-align:center;">
         <div style="position:relative;display:inline-block;max-width:650px;width:100%;cursor:crosshair;vertical-align:top;" x-on:click="onImageClick($event)">
             <img
@@ -40,15 +41,14 @@
                 draggable="false"
                 style="display:block;width:100%;height:auto;max-width:100%;max-height:400px;object-fit:contain;"
             />
-            @if($panorama)
             <div x-show="hasPanorama && yaw !== null && yaw !== '' && pitch !== null && pitch !== ''"
                  x-bind:style="'position:absolute;left:'+((parseFloat(yaw)+180)/360*100)+'%;top:'+((90-parseFloat(pitch))/180*100)+'%;width:26px;height:26px;background:#dc2626;border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.5);pointer-events:none;'"
-                 style="display:none;"
-                 title="Hotspot"></div>
-            @endif
+                  style="display:none;"
+                  title="Hotspot"></div>
             <div class="absolute inset-0 pointer-events-none opacity-10" style="background-image: linear-gradient(to right,white 1px,transparent 1px),linear-gradient(to bottom,white 1px,transparent 1px);background-size:10% 10%;"></div>
         </div>
     </div>
+    @endif
 
     <div class="flex gap-4 text-xs text-gray-500">
         <span>Yaw: <strong x-text="yaw ?? '—'"></strong>° (-180 → 180)</span>
