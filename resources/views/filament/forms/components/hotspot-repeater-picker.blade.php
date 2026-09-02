@@ -40,7 +40,7 @@
     class="space-y-2"
 >
     @if($panoramaUrl)
-        <div class="text-xs text-gray-500 mb-1">{{ __('forms.click_on_image') }} — Yaw/Pitch sẽ tự điền</div>
+        <div class="text-xs text-gray-500 mb-1">{{ __('forms.click_on_image') }} — Yaw/Pitch sẽ tự điền — chấm đỏ hiện vị trí hiện tại</div>
         <div class="relative border rounded-lg overflow-hidden bg-gray-50" style="padding:8px;text-align:center;">
             <div style="position:relative;display:inline-block;max-width:100%;width:100%;cursor:crosshair;" x-on:click="onImageClick($event)">
                 <img
@@ -50,6 +50,9 @@
                     draggable="false"
                     style="display:block;width:100%;height:auto;max-width:100%;max-height:280px;object-fit:contain;"
                 />
+                @if(isset($yaw) && isset($pitch) && $yaw !== '' && $yaw !== null && $pitch !== '' && $pitch !== null)
+                    <div style="position:absolute;left:{{ ((floatval($yaw)+180)/360*100) }}%;top:{{ ((90-floatval($pitch))/180*100) }}%;width:14px;height:14px;background:#dc2626;border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.4);pointer-events:none;"></div>
+                @endif
                 <div class="absolute inset-0 pointer-events-none opacity-10" style="background-image: linear-gradient(to right,white 1px,transparent 1px),linear-gradient(to bottom,white 1px,transparent 1px);background-size:10% 10%;"></div>
             </div>
         </div>

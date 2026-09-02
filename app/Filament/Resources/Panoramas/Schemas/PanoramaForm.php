@@ -139,6 +139,34 @@ class PanoramaForm
                     ->columnSpanFull()
                     ->collapsed(false)
                     ->components([
+                        View::make('filament.forms.components.hotspot-shared-picker')
+                            ->view('filament.forms.components.hotspot-shared-picker')
+                            ->columnSpanFull()
+                            ->viewData(function (Get $get) {
+                                $url = $get('url');
+                                if (is_array($url)) $url = $url[0] ?? null;
+                                if (blank($url) || ! is_string($url)) {
+                                    $recordId = request()->route('record');
+                                    if ($recordId && is_numeric($recordId)) {
+                                        $panorama = \App\Models\Panorama::find($recordId);
+                                        $url = $panorama?->url;
+                                    }
+                                }
+                                if (blank($url) || ! is_string($url)) {
+                                    return ['panoramaUrl' => null, 'hotspots' => $get('hotspots') ?? []];
+                                }
+                                $displayUrl = $url;
+                                if (str_starts_with($url, 'http') || str_starts_with($url, '/storage')) {
+                                    $displayUrl = $url;
+                                } elseif (str_starts_with($url, '/images') || str_starts_with($url, '/maps')) {
+                                    $displayUrl = $url;
+                                } elseif (str_starts_with($url, 'panoramas/')) {
+                                    $displayUrl = Storage::disk('public')->url($url);
+                                } elseif (Storage::disk('public')->exists($url)) {
+                                    $displayUrl = Storage::disk('public')->url($url);
+                                }
+                                return ['panoramaUrl' => $displayUrl, 'hotspots' => $get('hotspots') ?? []];
+                            }),
                         Repeater::make('hotspots')
                             ->relationship()
                             ->label('')
@@ -172,7 +200,7 @@ class PanoramaForm
                                             }
                                         }
                                         if (blank($url) || ! is_string($url)) {
-                                            return ['panoramaUrl' => null];
+                                            return ['panoramaUrl' => null, 'yaw' => $get('yaw'), 'pitch' => $get('pitch')];
                                         }
                                         $displayUrl = $url;
                                         if (str_starts_with($url, 'http') || str_starts_with($url, '/storage')) {
@@ -184,7 +212,7 @@ class PanoramaForm
                                         } elseif (Storage::disk('public')->exists($url)) {
                                             $displayUrl = Storage::disk('public')->url($url);
                                         }
-                                        return ['panoramaUrl' => $displayUrl];
+                                        return ['panoramaUrl' => $displayUrl, 'yaw' => $get('yaw'), 'pitch' => $get('pitch')];
                                     }),
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))
