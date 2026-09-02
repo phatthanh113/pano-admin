@@ -149,6 +149,26 @@ class PanoramaForm
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
                             ->reorderable()
                             ->components([
+                                View::make('filament.forms.components.hotspot-repeater-picker')
+                                    ->view('filament.forms.components.hotspot-repeater-picker')
+                                    ->columnSpanFull()
+                                    ->viewData(function (Get $get) {
+                                        $url = $get('../../url');
+                                        if (blank($url)) {
+                                            return ['panoramaUrl' => null];
+                                        }
+                                        $displayUrl = $url;
+                                        if (str_starts_with($url, 'http') || str_starts_with($url, '/storage')) {
+                                            $displayUrl = $url;
+                                        } elseif (str_starts_with($url, '/images') || str_starts_with($url, '/maps')) {
+                                            $displayUrl = $url;
+                                        } elseif (str_starts_with($url, 'panoramas/')) {
+                                            $displayUrl = Storage::disk('public')->url($url);
+                                        } elseif (Storage::disk('public')->exists($url)) {
+                                            $displayUrl = Storage::disk('public')->url($url);
+                                        }
+                                        return ['panoramaUrl' => $displayUrl];
+                                    }),
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))
                                     ->relationship('targetPanorama', 'name')
