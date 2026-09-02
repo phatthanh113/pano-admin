@@ -12,10 +12,20 @@ class CustomLogin extends BaseLogin
 {
     protected function getEmailFormComponent(): Component
     {
-        $isEn = app()->getLocale() === 'en';
+        $locale = app()->getLocale();
+        $label = match ($locale) {
+            'ja' => 'メールアドレスまたはID',
+            'en' => 'Email or ID',
+            default => 'Email hoặc ID',
+        };
+        $placeholder = match ($locale) {
+            'ja' => 'メールアドレスまたはIDを入力（例：admin）',
+            'en' => 'Enter email or ID (e.g. admin)',
+            default => 'Nhập email hoặc ID (ví dụ: admin)',
+        };
         return TextInput::make('email')
-            ->label($isEn ? 'Email or ID' : 'Email hoặc ID')
-            ->placeholder($isEn ? 'Enter email or ID (e.g. admin)' : 'Nhập email hoặc ID (ví dụ: admin)')
+            ->label($label)
+            ->placeholder($placeholder)
             ->required()
             ->autocomplete()
             ->autofocus()
