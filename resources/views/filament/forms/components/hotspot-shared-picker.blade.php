@@ -91,7 +91,7 @@
             // Đưa radio vào ngay trong header của từng phần tử repeater
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             items.forEach((item, idx) => {
-                const header = item.querySelector('.fi-fo-repeater-item-header') || item.querySelector('[class*="repeater-item-header"]') || item.firstElementChild;
+                const header = item.querySelector('.fi-fo-repeater-item-header') || item.querySelector('[class*=repeater-item-header]') || item.firstElementChild;
                 if (!header) return;
                 let radio = header.querySelector(':scope > input.hs-inline-radio');
                 if (!radio) {
