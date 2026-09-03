@@ -139,6 +139,7 @@ class PanoramaForm
                     ->columnSpanFull()
                     ->collapsed(false)
                     ->components([
+                        \Filament\Forms\Components\Hidden::make('current_panorama_id')->default(fn ($record) => $record?->id)->dehydrated(false),
                         View::make('filament.forms.components.hotspot-shared-picker')
                             ->view('filament.forms.components.hotspot-shared-picker')
                             ->columnSpanFull()
@@ -219,45 +220,17 @@ class PanoramaForm
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))
                                     ->relationship('targetPanorama', 'name', modifyQueryUsing: function (\Illuminate\Database\Eloquent\Builder $query, Get $get) {
-                                        // Lấy floor/building từ form cha - repeater item cần truy ngược
-                                        $floorId = $get('floor_id') ?? $get('../../floor_id') ?? $get('../../../floor_id') ?? null;
-                                        $buildingId = $get('building_id') ?? $get('../../building_id') ?? $get('../../../building_id') ?? null;
-                                        // Fallback: thử lấy từ Livewire data nếu $get không có (khi repeater chưa kịp sync)
-                                        if (blank($floorId) && blank($buildingId)) {
-                                            $data = request()->all();
-                                            // không dùng request, thử lấy từ record hiện tại
-                                            $routeRecord = request()->route('record');
-                                            $panorama = null;
-                                            if ($routeRecord instanceof \App\Models\Panorama) $panorama = $routeRecord;
-                                            elseif (is_numeric($routeRecord)) $panorama = \App\Models\Panorama::find($routeRecord);
-                                            if ($panorama) {
-                                                $floorId = $panorama->floor_id;
-                                                $buildingId = $panorama->building_id;
-                                            }
-                                        }
-                                        if (!empty($floorId)) {
-                                            $query->where('floor_id', $floorId);
-                                        } elseif (!empty($buildingId)) {
-                                            $query->where('building_id', $buildingId);
-                                            // nếu building là group thì panorama phải có floor_id thuộc building đó, không lọc floor_id null cứng
-                                            $building = \App\Models\Building::find($buildingId);
-                                            if ($building && $building->type === 'group') {
-                                                // chỉ lấy panorama thuộc building này (kể cả có floor)
-                                                $query->where('building_id', $buildingId);
-                                            } else {
-                                                $query->where('building_id', $buildingId)->whereNull('floor_id');
-                                            }
-                                        }
-                                        // Loại panorama hiện tại ra khỏi danh sách đích (triệt để - Livewire update không có route)
-                                        $currentId = $get('id') ?? $get('../../id') ?? $get('../../../id') ?? null;
+                                        // Ưu tiên lấy current panorama id triệt để (referer trước, vì $get path khác nhau giữa các item)
+                                        $currentId = null;
+                                        $referer = request()->header('referer') ?? request()->header('Referer');
+                                        if ($referer && preg_match('#/panoramas/(\d+)#', $referer, $m)) $currentId = $m[1];
                                         if (blank($currentId)) {
                                             $routeRecord = request()->route('record');
                                             if ($routeRecord instanceof \App\Models\Panorama) $currentId = $routeRecord->id;
                                             elseif (is_numeric($routeRecord)) $currentId = $routeRecord;
                                         }
                                         if (blank($currentId)) {
-                                            $referer = request()->header('referer') ?? request()->header('Referer');
-                                            if ($referer && preg_match('#/panoramas/(\d+)#', $referer, $m)) $currentId = $m[1];
+                                            $currentId = $get('current_panorama_id') ?? $get('../../current_panorama_id') ?? $get('../../../current_panorama_id') ?? $get('id') ?? $get('../../id') ?? $get('../../../id') ?? null;
                                         }
                                         if (blank($currentId)) {
                                             $payload = request()->input('components');
@@ -270,6 +243,41 @@ class PanoramaForm
                                                         }
                                                     }
                                                 }
+                                            }
+                                        }
+                                        // Lấy floor/building từ panorama hiện tại để đảm bảo đồng nhất cho mọi item repeater
+                                        $floorId = null;
+                                        $buildingId = null;
+                                        if (!blank($currentId) && is_numeric($currentId)) {
+                                            $panorama = \App\Models\Panorama::find($currentId);
+                                            $floorId = $panorama?->floor_id;
+                                            $buildingId = $panorama?->building_id;
+                                        }
+                                        if (blank($floorId) && blank($buildingId)) {
+                                            $floorId = $get('floor_id') ?? $get('../../floor_id') ?? $get('../../../floor_id') ?? null;
+                                            $buildingId = $get('building_id') ?? $get('../../building_id') ?? $get('../../../building_id') ?? null;
+                                        }
+                                        if (blank($floorId) && blank($buildingId) && !blank($currentId)) {
+                                            // fallback đã có ở trên
+                                        } elseif (blank($floorId) && blank($buildingId)) {
+                                            $routeRecord = request()->route('record');
+                                            $panorama2 = null;
+                                            if ($routeRecord instanceof \App\Models\Panorama) $panorama2 = $routeRecord;
+                                            elseif (is_numeric($routeRecord)) $panorama2 = \App\Models\Panorama::find($routeRecord);
+                                            if ($panorama2) {
+                                                $floorId = $panorama2->floor_id;
+                                                $buildingId = $panorama2->building_id;
+                                            }
+                                        }
+                                        if (!empty($floorId)) {
+                                            $query->where('floor_id', $floorId);
+                                        } elseif (!empty($buildingId)) {
+                                            $query->where('building_id', $buildingId);
+                                            $building = \App\Models\Building::find($buildingId);
+                                            if ($building && $building->type === 'group') {
+                                                $query->where('building_id', $buildingId);
+                                            } else {
+                                                $query->where('building_id', $buildingId)->whereNull('floor_id');
                                             }
                                         }
                                         if (!blank($currentId) && is_numeric($currentId)) $query->where('id', '!=', $currentId);
