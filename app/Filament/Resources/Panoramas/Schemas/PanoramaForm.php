@@ -176,12 +176,12 @@ class PanoramaForm
                         Repeater::make('hotspots')
                             ->relationship()
                             ->label('')
-                            ->columns(2)
+                            ->columns(4)
                             ->collapsible()
                             ->collapsed()
                             ->itemLabel(fn (array $state): ?string => $state['tooltip'] ?? ($state['target_panorama_id'] ? '→ Panorama #'.$state['target_panorama_id'] : 'Hotspot mới'))
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
-                            ->reorderable()
+                            ->reorderable(false)
                             ->components([
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))
@@ -197,12 +197,13 @@ class PanoramaForm
                                     ->columnSpan(1),
                                 TextInput::make('yaw')
                                     ->label(fn () => __('forms.yaw_horizontal'))
-                                    ->required()->numeric()->step(0.1)->default(0)->suffix('°'),
+                                    ->required()->numeric()->step(0.1)->default(0)->suffix('°')
+                                    ->columnSpan(1),
                                 TextInput::make('pitch')
                                     ->label(fn () => __('forms.pitch_vertical'))
-                                    ->required()->numeric()->step(0.1)->default(0)->suffix('°'),
-                                TextInput::make('sort_order')
-                                    ->label(fn () => __('forms.sort_order'))->numeric()->default(0)->required(),
+                                    ->required()->numeric()->step(0.1)->default(0)->suffix('°')
+                                    ->columnSpan(1),
+                                \Filament\Forms\Components\Hidden::make('sort_order')->default(0),
                             ]),
                     ]),
             ]);
