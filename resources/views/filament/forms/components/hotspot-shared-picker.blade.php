@@ -201,9 +201,15 @@ window._hsI18n = @js([
                             }
                         }
                     }
-                    if (!targetName) targetName = (window._hsI18n && window._hsI18n.hotspot_not_selected) || 'Chưa chọn';
-                    let tmpl = (window._hsI18n && window._hsI18n.hotspot_header) || 'Hotspot :index - :target';
-                    const newLabel = tmpl.replace(':index', idx+1).replace(':target', targetName);
+                    const notSel = (window._hsI18n && window._hsI18n.hotspot_not_selected) || 'Chưa chọn';
+                    let newLabel;
+                    if (!targetName || targetName === notSel || targetName === 'Not selected' || targetName === '未選択') {
+                        const base = (window._hsI18n && window._hsI18n.hotspot) || 'Hotspot';
+                        newLabel = `${base} ${idx+1}`;
+                    } else {
+                        let tmpl = (window._hsI18n && window._hsI18n.hotspot_header) || 'Hotspot :index - :target';
+                        newLabel = tmpl.replace(':index', idx+1).replace(':target', targetName);
+                    }
                     if (target.textContent.trim() !== newLabel) target.textContent = newLabel;
                 }
             });
