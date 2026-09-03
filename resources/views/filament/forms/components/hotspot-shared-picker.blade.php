@@ -64,22 +64,38 @@
             }, 800);
         },
         refresh() {
-            // chỉ đếm yaw/pitch/tooltip/target của hotspot repeater, không tính Default View (data.yaw)
-            const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.yaw&quot;]'));
-            const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.pitch&quot;]'));
-            const tooltipInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.tooltip&quot;]'));
-            const targetInputs = Array.from(document.querySelectorAll('[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;target_panorama_id&quot;]'));
-            if (!yawInputs.length) {
+            // Lấy dữ liệu từng repeater item trực tiếp, tránh lỗi wire:model selector
+            const repeaterEls = Array.from(document.querySelectorAll('.fi-fo-repeater-item'));
+            if (!repeaterEls.length) {
                 if (this.hotspotItems.length !== 0) this.hotspotItems = [];
                 this.$nextTick(() => { this.renameRepeaterHeaders(); this.injectRadiosIntoRepeater(); });
                 return;
             }
-            const items = yawInputs.map((el, i) => ({
-                yaw: el.value,
-                pitch: pitchInputs[i] ? pitchInputs[i].value : '',
-                tooltip: tooltipInputs[i] ? tooltipInputs[i].value : '',
-                target_panorama_id: targetInputs[i] ? targetInputs[i].value : '',
-            }));
+            const items = repeaterEls.map((itemEl) => {
+                const yawEl = itemEl.querySelector('input[id*="yaw"], input[name*="yaw"]');
+                const pitchEl = itemEl.querySelector('input[id*="pitch"], input[name*="pitch"]');
+                const tooltipEl = itemEl.querySelector('input[id*="tooltip"], input[name*="tooltip"]');
+                const targetEl = itemEl.querySelector('select, input[id*="target_panorama_id"], [id*="target_panorama_id"]');
+                // TomSelect có thể lưu value trong select hidden
+                let targetVal = '';
+                if (targetEl) {
+                    targetVal = targetEl.value || '';
+                    // nếu là TomSelect, value vẫn nằm ở select
+                    if (!targetVal) {
+                        const tsControl = itemEl.querySelector('.ts-control');
+                        if (tsControl) {
+                            const tsItem = tsControl.querySelector('.item');
+                            if (tsItem && tsItem.dataset.value) targetVal = tsItem.dataset.value;
+                        }
+                    }
+                }
+                return {
+                    yaw: yawEl ? yawEl.value : '',
+                    pitch: pitchEl ? pitchEl.value : '',
+                    tooltip: tooltipEl ? tooltipEl.value : '',
+                    target_panorama_id: targetVal,
+                };
+            });
             const changed = JSON.stringify(items) !== JSON.stringify(this.hotspotItems);
             if (changed) {
                 this.hotspotItems = items;
@@ -214,16 +230,16 @@
             newYaw = Math.round(newYaw * 10) / 10;
             newPitch = Math.round(newPitch * 10) / 10;
             newPitch = Math.max(-90, Math.min(90, newPitch));
-            const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.yaw&quot;]'));
-            const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.pitch&quot;]'));
+            const repeaterForClick = Array.from(document.querySelectorAll('.fi-fo-repeater-item'));
             let yawInput = null, pitchInput = null;
-            if (this.selectedIndex !== null && yawInputs[this.selectedIndex]) {
-                yawInput = yawInputs[this.selectedIndex];
-                pitchInput = pitchInputs[this.selectedIndex];
-            } else if (yawInputs.length) {
-                yawInput = yawInputs[yawInputs.length - 1];
-                pitchInput = pitchInputs[pitchInputs.length - 1];
-                this.selectedIndex = yawInputs.length - 1;
+            if (this.selectedIndex !== null && repeaterForClick[this.selectedIndex]) {
+                yawInput = repeaterForClick[this.selectedIndex].querySelector('input[id*="yaw"], input[name*="yaw"]');
+                pitchInput = repeaterForClick[this.selectedIndex].querySelector('input[id*="pitch"], input[name*="pitch"]');
+            } else if (repeaterForClick.length) {
+                const last = repeaterForClick[repeaterForClick.length - 1];
+                yawInput = last.querySelector('input[id*="yaw"], input[name*="yaw"]');
+                pitchInput = last.querySelector('input[id*="pitch"], input[name*="pitch"]');
+                this.selectedIndex = repeaterForClick.length - 1;
             }
             if (yawInput) {
                 yawInput.focus();
