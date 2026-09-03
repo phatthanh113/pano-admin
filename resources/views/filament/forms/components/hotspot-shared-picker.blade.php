@@ -1,5 +1,9 @@
 <script>
-window._hsInitialPanoramaUrl = @js($panoramaUrl);
+(function() {
+  const _pnUrl = @js($panoramaUrl);
+  if (_pnUrl) window._hsInitialPanoramaUrl = _pnUrl;
+  else if (!window._hsInitialPanoramaUrl) window._hsInitialPanoramaUrl = _pnUrl;
+})();
 window._hsPanoramaMap = @js($panoramaMap ?? []);
 window._hsI18n = @js([
     'hotspot' => __('forms.hotspot'),

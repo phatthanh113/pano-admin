@@ -159,8 +159,8 @@ class PanoramaForm
                                 }
                                 // $get('url') có thể blank sau khi Livewire thêm repeater item (request là /livewire/update, không có route record)
                                 if (blank($url) || ! is_string($url)) {
-                                    // 1) thử lấy id từ form state
-                                    $recordId = $get('id');
+                                    // 1) thử lấy id từ form state (kể cả hidden current_panorama_id)
+                                    $recordId = $get('id') ?? $get('current_panorama_id') ?? $get('../../current_panorama_id') ?? $get('../../../current_panorama_id');
                                     if (blank($recordId)) {
                                         // 2) thử từ request route (lần load đầu)
                                         $routeRecord = request()->route('record');
