@@ -68,6 +68,7 @@
             const tooltipInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.tooltip&quot;]'));
             if (!yawInputs.length) {
                 if (this.hotspotItems.length !== 0) this.hotspotItems = [];
+                this.$nextTick(() => { this.renameRepeaterHeaders(); this.injectRadiosIntoRepeater(); });
                 return;
             }
             const items = yawInputs.map((el, i) => ({
@@ -79,10 +80,55 @@
             if (changed) {
                 this.hotspotItems = items;
                 if (this.selectedIndex >= items.length) this.selectedIndex = Math.max(0, items.length - 1);
-                this.$nextTick(() => { this.updateDots(); this.renameRepeaterHeaders(); });
+                this.$nextTick(() => { this.updateDots(); this.renameRepeaterHeaders(); this.injectRadiosIntoRepeater(); });
             } else {
                 this.renameRepeaterHeaders();
+                this.injectRadiosIntoRepeater();
             }
+        },
+        injectRadiosIntoRepeater() {
+            // Đưa radio vào ngay trong header của từng phần tử repeater
+            const items = document.querySelectorAll('.fi-fo-repeater-item');
+            items.forEach((item, idx) => {
+                const header = item.querySelector('.fi-fo-repeater-item-header') || item.querySelector('[class*="repeater-item-header"]') || item.firstElementChild;
+                if (!header) return;
+                let radio = header.querySelector(':scope > input.hs-inline-radio');
+                if (!radio) {
+                    radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'hs_selected_hotspot';
+                    radio.className = 'hs-inline-radio w-4 h-4 text-primary-600 shrink-0 cursor-pointer';
+                    radio.style.marginRight = '8px';
+                    radio.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectedIndex = idx;
+                        this.$nextTick(() => this.updateDots());
+                    });
+                    // chặn collapse khi click radio
+                    radio.addEventListener('mousedown', (e) => e.stopPropagation());
+                    header.prepend(radio);
+                    // click vào header cũng chọn hotspot đó (không chỉ radio)
+                    header.style.cursor = 'pointer';
+                    header.addEventListener('click', (e) => {
+                        if (e.target.closest('button') || e.target.closest('[data-action]')) return;
+                        if (e.target === radio) return;
+                        this.selectedIndex = idx;
+                        this.$nextTick(() => this.updateDots());
+                    });
+                }
+                radio.checked = this.selectedIndex === idx;
+                radio.value = idx;
+                // highlight header đang chọn
+                if (this.selectedIndex === idx) {
+                    header.classList.add('!bg-primary-50');
+                    header.style.background = '#eff6ff';
+                    header.style.borderLeft = '3px solid #3b82f6';
+                } else {
+                    header.classList.remove('!bg-primary-50');
+                    header.style.background = '';
+                    header.style.borderLeft = '';
+                }
+            });
         },
         renameRepeaterHeaders() {
             // Đổi header của Repeater thành Hotspot 1, Hotspot 2 ...
@@ -206,21 +252,8 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-2" x-show="hotspotItems.length > 0">
-            <template x-for="(hs, idx) in hotspotItems" :key="idx">
-                <label
-                    @click="selectedIndex = idx; $nextTick(() => updateDots())"
-                    :class="selectedIndex === idx ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-900/30' : 'bg-white border-gray-200 hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700'"
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer text-xs font-medium transition-colors"
-                >
-                    <input type="radio" name="selected_hotspot_shared" :value="idx" :checked="selectedIndex === idx" @change="selectedIndex = idx" class="w-3.5 h-3.5 text-primary-600 focus:ring-primary-500">
-                    <span x-text="'Hotspot ' + (idx+1) + (hs.tooltip ? ' — ' + hs.tooltip : '')"></span>
-                    <span class="w-2 h-2 rounded-full" :style="selectedIndex === idx ? 'background:#22c55e' : 'background:#d1d5db'"></span>
-                </label>
-            </template>
-        </div>
-        <div x-show="hotspotItems.length === 0" class="text-xs text-gray-500">Chưa có hotspot nào. Bấm “Thêm hotspot” bên dưới, sau đó chọn radio và click lên ảnh để đặt vị trí.</div>
-        <div class="text-xs text-gray-500" x-text="`Đã có ${hotspotItems.length} hotspot(s). Radio đang chọn sẽ được cập nhật khi click lên ảnh.`"></div>
+        <div class="text-xs text-gray-500" x-text="`Đã có ${hotspotItems.length} hotspot(s). Radio đã chuyển vào trong từng Hotspot bên dưới — click radio hoặc header để chọn, rồi click lên ảnh để đặt Yaw/Pitch.`"></div>
+        <div x-show="hotspotItems.length === 0" class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">Chưa có hotspot nào. Bấm “Thêm hotspot” bên dưới, sau đó chọn radio trong Hotspot và click lên ảnh để đặt vị trí.</div>
 
         {{-- Fallback SSR dots khi JS chưa kịp load (ẩn khi Alpine ready) --}}
         <noscript>
