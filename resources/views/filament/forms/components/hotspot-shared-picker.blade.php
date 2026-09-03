@@ -132,23 +132,37 @@
             });
         },
         renameRepeaterHeaders() {
-            // Đổi header của Repeater thành Hotspot 1, Hotspot 2 ...
+            // Đổi header thành Hotspot 1 - Target Panorama, Hotspot 2 - Target Panorama
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             items.forEach((item, idx) => {
-                // Filament v3: header label nằm trong .fi-fo-repeater-item-header hoặc span đầu tiên
                 const label = item.querySelector('.fi-fo-repeater-item-header span, .fi-fo-repeater-item-header p, [data-repeater-item-label], h4');
-                // fallback: tìm span có text Hotspot / Về / → Panorama
                 const candidates = item.querySelectorAll('span, p, div');
                 let target = label;
                 if (!target) {
                     for (const c of candidates) {
                         const t = c.textContent.trim();
-                        if (t && (t.startsWith('Hotspot') || t.startsWith('Về') || t.startsWith('→') || t === 'Hotspot mới')) { target = c; break; }
+                        if (t && (t.startsWith('Hotspot') || t.startsWith('Về') || t.startsWith('→') || t === 'Hotspot mới' || t.includes('—'))) { target = c; break; }
                     }
                 }
                 if (target) {
-                    const tooltip = this.hotspotItems[idx]?.tooltip;
-                    const newLabel = tooltip ? `Hotspot ${idx+1} — ${tooltip}` : `Hotspot ${idx+1}`;
+                    // lấy tên target panorama từ TomSelect / select
+                    let targetName = '';
+                    const tsItem = item.querySelector('.ts-control .item, .choices__item, [data-ts-item]');
+                    if (tsItem && tsItem.textContent.trim()) {
+                        targetName = tsItem.textContent.trim();
+                    } else {
+                        const sel = item.querySelector('select');
+                        if (sel && sel.selectedOptions.length && sel.selectedOptions[0].value) {
+                            targetName = sel.selectedOptions[0].textContent.trim();
+                        } else {
+                            const inp = item.querySelector('[wire\\:model*=&quot;target_panorama_id&quot;]');
+                            if (inp && inp.value) targetName = `Panorama #${inp.value}`;
+                        }
+                    }
+                    // rút gọn: chỉ lấy phần trước — nếu dài
+                    if (targetName.includes('—')) targetName = targetName.split('—')[0].trim();
+                    if (!targetName) targetName = 'Chưa chọn';
+                    const newLabel = `Hotspot ${idx+1} - ${targetName}`;
                     if (target.textContent.trim() !== newLabel) target.textContent = newLabel;
                 }
             });

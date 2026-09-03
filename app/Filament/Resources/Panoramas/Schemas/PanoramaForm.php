@@ -206,12 +206,14 @@ class PanoramaForm
                             ->collapsible()
                             ->collapsed()
                             ->itemLabel(function (array $state): ?string {
-                                // Đếm thứ tự dựa trên tooltip hoặc fallback - JS sẽ đổi lại thành Hotspot 1,2 sau render
-                                // Giữ đơn giản: Hotspot 1, Hotspot 2 ... (tooltip sẽ hiện trong form)
-                                static $counter = 0;
-                                // Không dùng static thực sự vì sẽ tăng mãi, dùng tooltip để phân biệt
-                                if (!empty($state['tooltip'])) return $state['tooltip'];
-                                if (!empty($state['target_panorama_id'])) return '→ Panorama #'.$state['target_panorama_id'];
+                                $targetId = $state['target_panorama_id'] ?? null;
+                                $targetName = null;
+                                if ($targetId) {
+                                    try { $p = \App\Models\Panorama::find($targetId); $targetName = $p?->name; } catch (\Throwable $e) {}
+                                }
+                                if ($targetName) return 'Hotspot - ' . $targetName;
+                                if (!empty($state['tooltip'])) return 'Hotspot - ' . $state['tooltip'];
+                                if (!empty($targetId)) return 'Hotspot - Panorama #'.$targetId;
                                 return 'Hotspot mới';
                             })
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
