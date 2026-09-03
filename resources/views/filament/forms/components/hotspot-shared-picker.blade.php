@@ -1,5 +1,7 @@
 <div
+    wire:ignore
     x-data="{
+        panoramaUrl: @js($panoramaUrl),
         selectedIndex: 0,
         hotspotItems: [],
         init() {
@@ -134,12 +136,14 @@
         }
     }"
     class="space-y-2 mb-4"
+    x-init="if (!panoramaUrl) { const cached = sessionStorage.getItem('hs_panoramaUrl_' + window.location.pathname); if (cached) panoramaUrl = cached; } else { sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, panoramaUrl); } $watch('panoramaUrl', v => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); })"
 >
-    @if($panoramaUrl)
+    <div x-show="panoramaUrl" x-cloak>
         <div class="text-xs text-gray-600 dark:text-gray-300">Chọn hotspot bằng radio bên dưới, sau đó click lên ảnh để đặt vị trí. Chấm viền xanh là hotspot đang chọn (hỗ trợ nhiều chấm đỏ).</div>
         <div class="relative border rounded-lg overflow-hidden bg-gray-50 p-2 flex justify-center">
             <div style="position:relative;display:inline-block;cursor:crosshair;max-width:650px;" x-on:click="onImageClick($event)">
                 <img
+                    :src="panoramaUrl"
                     src="{{ $panoramaUrl }}"
                     alt="Panorama preview - chung"
                     class="block select-none"
@@ -189,9 +193,12 @@
                 @endif
             @endforeach
         </noscript>
-    @else
-        <div class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">
-            Hãy upload ảnh Panorama ở trên trước, sau đó ảnh chung sẽ hiện ở đây để bạn click chọn vị trí cho tất cả hotspot.
-        </div>
+    </div>
+    <div x-show="!panoramaUrl" x-cloak class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">
+        Hãy upload ảnh Panorama ở trên trước, sau đó ảnh chung sẽ hiện ở đây để bạn click chọn vị trí cho tất cả hotspot.
+    </div>
+    {{-- Giữ @if cho SSR lần đầu nếu JS chưa load --}}
+    @if(!$panoramaUrl)
+        <div x-show="!panoramaUrl" class="hidden"></div>
     @endif
 </div>

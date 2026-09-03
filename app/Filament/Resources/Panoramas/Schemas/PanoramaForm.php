@@ -142,29 +142,48 @@ class PanoramaForm
                         View::make('filament.forms.components.hotspot-shared-picker')
                             ->view('filament.forms.components.hotspot-shared-picker')
                             ->columnSpanFull()
+                            ->extraAttributes(['wire:ignore' => ''])
                             ->viewData(function (Get $get) {
                                 $url = $get('url');
                                 if (is_array($url)) $url = $url[0] ?? null;
-                                // Handle Livewire TemporaryUploadedFile when creating new panorama
                                 if (is_object($url) && method_exists($url, 'temporaryUrl')) {
                                     try { $tmp = $url->temporaryUrl(); return ['panoramaUrl' => $tmp, 'hotspots' => $get('hotspots') ?? []]; } catch (\Throwable $e) {}
                                 }
+                                // $get('url') có thể blank sau khi Livewire thêm repeater item (request là /livewire/update, không có route record)
                                 if (blank($url) || ! is_string($url)) {
-                                    $routeRecord = request()->route('record');
-                                    $recordId = null;
-                                    if ($routeRecord instanceof \App\Models\Panorama) {
-                                        $recordId = $routeRecord->id;
-                                    } elseif (is_numeric($routeRecord)) {
-                                        $recordId = $routeRecord;
+                                    // 1) thử lấy id từ form state
+                                    $recordId = $get('id');
+                                    if (blank($recordId)) {
+                                        // 2) thử từ request route (lần load đầu)
+                                        $routeRecord = request()->route('record');
+                                        if ($routeRecord instanceof \App\Models\Panorama) $recordId = $routeRecord->id;
+                                        elseif (is_numeric($routeRecord)) $recordId = $routeRecord;
                                     }
-                                    if ($recordId) {
+                                    if (blank($recordId)) {
+                                        // 3) parse từ referer header khi là Livewire update (referer chứa /admin/panoramas/{id}/edit)
+                                        $referer = request()->header('referer') ?? request()->header('Referer');
+                                        if ($referer && preg_match('#/panoramas/(\d+)#', $referer, $m)) $recordId = $m[1];
+                                    }
+                                    if (blank($recordId)) {
+                                        // 4) thử từ Livewire payload (components -> calls -> record)
+                                        $payload = request()->input('components');
+                                        if (is_string($payload)) $payload = json_decode($payload, true);
+                                        if (is_array($payload)) {
+                                            foreach ($payload as $comp) {
+                                                if (!empty($comp['calls'])) {
+                                                    foreach ($comp['calls'] as $call) {
+                                                        if (!empty($call['params'][0]) && is_numeric($call['params'][0])) { $recordId = $call['params'][0]; break 2; }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (!blank($recordId) && is_numeric($recordId)) {
                                         $panorama = \App\Models\Panorama::find($recordId);
                                         $url = $panorama?->url;
                                     }
                                 }
-                                // still try to keep url from livewire data if blank
                                 if (blank($url) || ! is_string($url)) {
-                                    // keep existing hotspots but panoramaUrl null => ảnh sẽ mất, nên cố giữ url từ file upload state
                                     return ['panoramaUrl' => null, 'hotspots' => $get('hotspots') ?? []];
                                 }
                                 $displayUrl = $url;
