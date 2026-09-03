@@ -248,12 +248,31 @@ class PanoramaForm
                                                 $query->where('building_id', $buildingId)->whereNull('floor_id');
                                             }
                                         }
-                                        // Loại panorama hiện tại ra khỏi danh sách đích
-                                        $routeRecord = request()->route('record');
-                                        $currentId = null;
-                                        if ($routeRecord instanceof \App\Models\Panorama) $currentId = $routeRecord->id;
-                                        elseif (is_numeric($routeRecord)) $currentId = $routeRecord;
-                                        if ($currentId) $query->where('id', '!=', $currentId);
+                                        // Loại panorama hiện tại ra khỏi danh sách đích (triệt để - Livewire update không có route)
+                                        $currentId = $get('id') ?? $get('../../id') ?? $get('../../../id') ?? null;
+                                        if (blank($currentId)) {
+                                            $routeRecord = request()->route('record');
+                                            if ($routeRecord instanceof \App\Models\Panorama) $currentId = $routeRecord->id;
+                                            elseif (is_numeric($routeRecord)) $currentId = $routeRecord;
+                                        }
+                                        if (blank($currentId)) {
+                                            $referer = request()->header('referer') ?? request()->header('Referer');
+                                            if ($referer && preg_match('#/panoramas/(\d+)#', $referer, $m)) $currentId = $m[1];
+                                        }
+                                        if (blank($currentId)) {
+                                            $payload = request()->input('components');
+                                            if (is_string($payload)) $payload = json_decode($payload, true);
+                                            if (is_array($payload)) {
+                                                foreach ($payload as $comp) {
+                                                    if (!empty($comp['calls'])) {
+                                                        foreach ($comp['calls'] as $call) {
+                                                            if (!empty($call['params'][0]) && is_numeric($call['params'][0])) { $currentId = $call['params'][0]; break 2; }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if (!blank($currentId) && is_numeric($currentId)) $query->where('id', '!=', $currentId);
                                         $query->where('is_active', true);
                                     })
                                     ->getOptionLabelFromRecordUsing(fn (\App\Models\Panorama $record) => $record->name . ' — ' . ($record->building?->name ?? '-') . ($record->floor ? '/' . $record->floor->name : '') . ' #' . $record->id)
