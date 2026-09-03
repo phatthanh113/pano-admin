@@ -26,7 +26,7 @@ window._hsI18n = @js([
         init() {
             // Khôi phục panoramaUrl triệt để: ưu tiên PHP, rồi hidden current_panorama_url, rồi sessionStorage, rồi DOM FileUpload preview
             const tryResolveFromDom = () => {
-                const hidden = document.querySelector('input[id*="current_panorama_url"]');
+                const hidden = document.querySelector('input[id*=current_panorama_url]');
                 if (hidden && hidden.value) return hidden.value;
                 const imgs = Array.from(document.querySelectorAll('img'));
                 for (const img of imgs) {
@@ -91,10 +91,10 @@ window._hsI18n = @js([
                 return;
             }
             const items = repeaterEls.map((itemEl) => {
-                const yawEl = itemEl.querySelector('input[id*="yaw"], input[name*="yaw"]');
-                const pitchEl = itemEl.querySelector('input[id*="pitch"], input[name*="pitch"]');
-                const tooltipEl = itemEl.querySelector('input[id*="tooltip"], input[name*="tooltip"]');
-                const targetEl = itemEl.querySelector('select, input[id*="target_panorama_id"], [id*="target_panorama_id"]');
+                const yawEl = itemEl.querySelector('input[id*=yaw], input[name*=yaw]');
+                const pitchEl = itemEl.querySelector('input[id*=pitch], input[name*=pitch]');
+                const tooltipEl = itemEl.querySelector('input[id*=tooltip], input[name*=tooltip]');
+                const targetEl = itemEl.querySelector('select, input[id*=target_panorama_id], [id*=target_panorama_id]');
                 // TomSelect có thể lưu value trong select hidden
                 let targetVal = '';
                 if (targetEl) {
@@ -252,12 +252,12 @@ window._hsI18n = @js([
             const repeaterForClick = Array.from(document.querySelectorAll('.fi-fo-repeater-item'));
             let yawInput = null, pitchInput = null;
             if (this.selectedIndex !== null && repeaterForClick[this.selectedIndex]) {
-                yawInput = repeaterForClick[this.selectedIndex].querySelector('input[id*="yaw"], input[name*="yaw"]');
-                pitchInput = repeaterForClick[this.selectedIndex].querySelector('input[id*="pitch"], input[name*="pitch"]');
+                yawInput = repeaterForClick[this.selectedIndex].querySelector('input[id*=yaw], input[name*=yaw]');
+                pitchInput = repeaterForClick[this.selectedIndex].querySelector('input[id*=pitch], input[name*=pitch]');
             } else if (repeaterForClick.length) {
                 const last = repeaterForClick[repeaterForClick.length - 1];
-                yawInput = last.querySelector('input[id*="yaw"], input[name*="yaw"]');
-                pitchInput = last.querySelector('input[id*="pitch"], input[name*="pitch"]');
+                yawInput = last.querySelector('input[id*=yaw], input[name*=yaw]');
+                pitchInput = last.querySelector('input[id*=pitch], input[name*=pitch]');
                 this.selectedIndex = repeaterForClick.length - 1;
             }
             if (yawInput) {
