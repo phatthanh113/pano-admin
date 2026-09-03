@@ -5,18 +5,61 @@
         selectedIndex: 0,
         hotspotItems: [],
         init() {
+            // Khôi phục panoramaUrl triệt để: ưu tiên PHP, rồi sessionStorage, rồi DOM FileUpload preview
+            const tryResolveFromDom = () => {
+                const imgs = Array.from(document.querySelectorAll('img'));
+                for (const img of imgs) {
+                    const src = img.getAttribute('src') || img.src || '';
+                    if (!src) continue;
+                    // bỏ qua ảnh của chính picker (nằm trong wire:ignore)
+                    if (img.closest('[wire\\:ignore]') && img.closest('[wire\\:ignore]') === this.$el) continue;
+                    if (src.includes('panoramas') || src.includes('/storage/') || src.includes('blob:') || src.includes('/images/pana')) {
+                        // đảm bảo không phải icon nhỏ, phải là ảnh panorama preview (thường nằm gần label Panorama Image)
+                        if (img.width > 100 || img.naturalWidth > 100) return src;
+                    }
+                }
+                return null;
+            };
+            if (!this.panoramaUrl) {
+                const cached = sessionStorage.getItem('hs_panoramaUrl_' + window.location.pathname);
+                if (cached) this.panoramaUrl = cached;
+                else {
+                    const domUrl = tryResolveFromDom();
+                    if (domUrl) this.panoramaUrl = domUrl;
+                }
+            } else {
+                sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, this.panoramaUrl);
+            }
+            // quan sát FileUpload preview thay đổi (khi upload mới)
+            const domObserver = new MutationObserver(() => {
+                const domUrl = tryResolveFromDom();
+                if (domUrl && domUrl !== this.panoramaUrl) {
+                    this.panoramaUrl = domUrl;
+                    sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, domUrl);
+                }
+                this.refresh();
+            });
+            domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+
             this.refresh();
             this.$watch('selectedIndex', () => this.updateDots());
+            this.$watch('panoramaUrl', (v) => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); });
             this.$nextTick(() => { this.refresh(); this.updateDots(); });
             // theo dõi khi repeater thêm/xóa item (Livewire re-render)
             const observer = new MutationObserver(() => this.refresh());
             observer.observe(document.body, { childList: true, subtree: true });
             // Livewire v3 hook nếu có
             if (window.Livewire) {
-                try { Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => { succeed(({ snapshot, effect }) => { setTimeout(() => this.refresh(), 50); }); }); } catch(e) {}
+                try { Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => { succeed(({ snapshot, effect }) => { setTimeout(() => { const domUrl2 = tryResolveFromDom(); if (domUrl2 && !this.panoramaUrl) this.panoramaUrl = domUrl2; this.refresh(); }, 50); }); }); } catch(e) {}
                 document.addEventListener('livewire:update', () => setTimeout(() => this.refresh(), 100));
             }
-            setInterval(() => this.refresh(), 800);
+            setInterval(() => {
+                if (!this.panoramaUrl) {
+                    const domUrl = tryResolveFromDom();
+                    if (domUrl) this.panoramaUrl = domUrl;
+                }
+                this.refresh();
+            }, 800);
         },
         refresh() {
             // chỉ đếm yaw/pitch/tooltip của hotspot repeater, không tính Default View (data.yaw)
