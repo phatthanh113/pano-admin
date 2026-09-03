@@ -145,6 +145,10 @@ class PanoramaForm
                             ->viewData(function (Get $get) {
                                 $url = $get('url');
                                 if (is_array($url)) $url = $url[0] ?? null;
+                                // Handle Livewire TemporaryUploadedFile when creating new panorama
+                                if (is_object($url) && method_exists($url, 'temporaryUrl')) {
+                                    try { $tmp = $url->temporaryUrl(); return ['panoramaUrl' => $tmp, 'hotspots' => $get('hotspots') ?? []]; } catch (\Throwable $e) {}
+                                }
                                 if (blank($url) || ! is_string($url)) {
                                     $routeRecord = request()->route('record');
                                     $recordId = null;
@@ -158,7 +162,9 @@ class PanoramaForm
                                         $url = $panorama?->url;
                                     }
                                 }
+                                // still try to keep url from livewire data if blank
                                 if (blank($url) || ! is_string($url)) {
+                                    // keep existing hotspots but panoramaUrl null => ảnh sẽ mất, nên cố giữ url từ file upload state
                                     return ['panoramaUrl' => null, 'hotspots' => $get('hotspots') ?? []];
                                 }
                                 $displayUrl = $url;
@@ -179,13 +185,58 @@ class PanoramaForm
                             ->columns(4)
                             ->collapsible()
                             ->collapsed()
-                            ->itemLabel(fn (array $state): ?string => $state['tooltip'] ?? ($state['target_panorama_id'] ? '→ Panorama #'.$state['target_panorama_id'] : 'Hotspot mới'))
+                            ->itemLabel(function (array $state): ?string {
+                                // Đếm thứ tự dựa trên tooltip hoặc fallback - JS sẽ đổi lại thành Hotspot 1,2 sau render
+                                // Giữ đơn giản: Hotspot 1, Hotspot 2 ... (tooltip sẽ hiện trong form)
+                                static $counter = 0;
+                                // Không dùng static thực sự vì sẽ tăng mãi, dùng tooltip để phân biệt
+                                if (!empty($state['tooltip'])) return $state['tooltip'];
+                                if (!empty($state['target_panorama_id'])) return '→ Panorama #'.$state['target_panorama_id'];
+                                return 'Hotspot mới';
+                            })
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
                             ->reorderable(false)
                             ->components([
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))
-                                    ->relationship('targetPanorama', 'name')
+                                    ->relationship('targetPanorama', 'name', modifyQueryUsing: function (\Illuminate\Database\Eloquent\Builder $query, Get $get) {
+                                        // Lấy floor/building từ form cha - repeater item cần truy ngược
+                                        $floorId = $get('floor_id') ?? $get('../../floor_id') ?? $get('../../../floor_id') ?? null;
+                                        $buildingId = $get('building_id') ?? $get('../../building_id') ?? $get('../../../building_id') ?? null;
+                                        // Fallback: thử lấy từ Livewire data nếu $get không có (khi repeater chưa kịp sync)
+                                        if (blank($floorId) && blank($buildingId)) {
+                                            $data = request()->all();
+                                            // không dùng request, thử lấy từ record hiện tại
+                                            $routeRecord = request()->route('record');
+                                            $panorama = null;
+                                            if ($routeRecord instanceof \App\Models\Panorama) $panorama = $routeRecord;
+                                            elseif (is_numeric($routeRecord)) $panorama = \App\Models\Panorama::find($routeRecord);
+                                            if ($panorama) {
+                                                $floorId = $panorama->floor_id;
+                                                $buildingId = $panorama->building_id;
+                                            }
+                                        }
+                                        if (!empty($floorId)) {
+                                            $query->where('floor_id', $floorId);
+                                        } elseif (!empty($buildingId)) {
+                                            $query->where('building_id', $buildingId);
+                                            // nếu building là group thì panorama phải có floor_id thuộc building đó, không lọc floor_id null cứng
+                                            $building = \App\Models\Building::find($buildingId);
+                                            if ($building && $building->type === 'group') {
+                                                // chỉ lấy panorama thuộc building này (kể cả có floor)
+                                                $query->where('building_id', $buildingId);
+                                            } else {
+                                                $query->where('building_id', $buildingId)->whereNull('floor_id');
+                                            }
+                                        }
+                                        // Loại panorama hiện tại ra khỏi danh sách đích
+                                        $routeRecord = request()->route('record');
+                                        $currentId = null;
+                                        if ($routeRecord instanceof \App\Models\Panorama) $currentId = $routeRecord->id;
+                                        elseif (is_numeric($routeRecord)) $currentId = $routeRecord;
+                                        if ($currentId) $query->where('id', '!=', $currentId);
+                                        $query->where('is_active', true);
+                                    })
                                     ->getOptionLabelFromRecordUsing(fn (\App\Models\Panorama $record) => $record->name . ' — ' . ($record->building?->name ?? '-') . ($record->floor ? '/' . $record->floor->name : '') . ' #' . $record->id)
                                     ->searchable(['name', 'slug'])
                                     ->preload()

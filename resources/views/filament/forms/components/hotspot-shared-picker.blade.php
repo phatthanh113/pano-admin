@@ -17,9 +17,10 @@
             setInterval(() => this.refresh(), 800);
         },
         refresh() {
-            const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;.yaw&quot;]'));
-            const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;.pitch&quot;]'));
-            const tooltipInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;.tooltip&quot;]'));
+            // chỉ đếm yaw/pitch/tooltip của hotspot repeater, không tính Default View (data.yaw)
+            const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.yaw&quot;]'));
+            const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.pitch&quot;]'));
+            const tooltipInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.tooltip&quot;]'));
             if (!yawInputs.length) {
                 if (this.hotspotItems.length !== 0) this.hotspotItems = [];
                 return;
@@ -29,13 +30,36 @@
                 pitch: pitchInputs[i] ? pitchInputs[i].value : '',
                 tooltip: tooltipInputs[i] ? tooltipInputs[i].value : '',
             }));
-            // chỉ cập nhật khi thay đổi để tránh loop
             const changed = JSON.stringify(items) !== JSON.stringify(this.hotspotItems);
             if (changed) {
                 this.hotspotItems = items;
                 if (this.selectedIndex >= items.length) this.selectedIndex = Math.max(0, items.length - 1);
-                this.$nextTick(() => this.updateDots());
+                this.$nextTick(() => { this.updateDots(); this.renameRepeaterHeaders(); });
+            } else {
+                this.renameRepeaterHeaders();
             }
+        },
+        renameRepeaterHeaders() {
+            // Đổi header của Repeater thành Hotspot 1, Hotspot 2 ...
+            const items = document.querySelectorAll('.fi-fo-repeater-item');
+            items.forEach((item, idx) => {
+                // Filament v3: header label nằm trong .fi-fo-repeater-item-header hoặc span đầu tiên
+                const label = item.querySelector('.fi-fo-repeater-item-header span, .fi-fo-repeater-item-header p, [data-repeater-item-label], h4');
+                // fallback: tìm span có text Hotspot / Về / → Panorama
+                const candidates = item.querySelectorAll('span, p, div');
+                let target = label;
+                if (!target) {
+                    for (const c of candidates) {
+                        const t = c.textContent.trim();
+                        if (t && (t.startsWith('Hotspot') || t.startsWith('Về') || t.startsWith('→') || t === 'Hotspot mới')) { target = c; break; }
+                    }
+                }
+                if (target) {
+                    const tooltip = this.hotspotItems[idx]?.tooltip;
+                    const newLabel = tooltip ? `Hotspot ${idx+1} — ${tooltip}` : `Hotspot ${idx+1}`;
+                    if (target.textContent.trim() !== newLabel) target.textContent = newLabel;
+                }
+            });
         },
         normalizedLeft(yaw) {
             const y = parseFloat(yaw);
@@ -78,8 +102,8 @@
             newYaw = Math.round(newYaw * 10) / 10;
             newPitch = Math.round(newPitch * 10) / 10;
             newPitch = Math.max(-90, Math.min(90, newPitch));
-            const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;.yaw&quot;]'));
-            const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;.pitch&quot;]'));
+            const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.yaw&quot;]'));
+            const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.pitch&quot;]'));
             let yawInput = null, pitchInput = null;
             if (this.selectedIndex !== null && yawInputs[this.selectedIndex]) {
                 yawInput = yawInputs[this.selectedIndex];
@@ -143,7 +167,7 @@
                     class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer text-xs font-medium transition-colors"
                 >
                     <input type="radio" name="selected_hotspot_shared" :value="idx" :checked="selectedIndex === idx" @change="selectedIndex = idx" class="w-3.5 h-3.5 text-primary-600 focus:ring-primary-500">
-                    <span x-text="hs.tooltip ? hs.tooltip : ('Hotspot #' + (idx+1))"></span>
+                    <span x-text="'Hotspot ' + (idx+1) + (hs.tooltip ? ' — ' + hs.tooltip : '')"></span>
                     <span class="w-2 h-2 rounded-full" :style="selectedIndex === idx ? 'background:#22c55e' : 'background:#d1d5db'"></span>
                 </label>
             </template>
