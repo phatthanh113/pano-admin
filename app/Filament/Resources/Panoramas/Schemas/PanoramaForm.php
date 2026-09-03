@@ -147,8 +147,10 @@ class PanoramaForm
                             ->viewData(function (Get $get) {
                                 $url = $get('url');
                                 if (is_array($url)) $url = $url[0] ?? null;
+                                $panoramaMap = [];
+                                try { $panoramaMap = \App\Models\Panorama::where('is_active', true)->pluck('name','id')->toArray(); } catch (\Throwable $e) {}
                                 if (is_object($url) && method_exists($url, 'temporaryUrl')) {
-                                    try { $tmp = $url->temporaryUrl(); return ['panoramaUrl' => $tmp, 'hotspots' => $get('hotspots') ?? []]; } catch (\Throwable $e) {}
+                                    try { $tmp = $url->temporaryUrl(); return ['panoramaUrl' => $tmp, 'hotspots' => $get('hotspots') ?? [], 'panoramaMap' => $panoramaMap]; } catch (\Throwable $e) {}
                                 }
                                 // $get('url') có thể blank sau khi Livewire thêm repeater item (request là /livewire/update, không có route record)
                                 if (blank($url) || ! is_string($url)) {
@@ -185,7 +187,7 @@ class PanoramaForm
                                     }
                                 }
                                 if (blank($url) || ! is_string($url)) {
-                                    return ['panoramaUrl' => null, 'hotspots' => $get('hotspots') ?? []];
+                                    return ['panoramaUrl' => null, 'hotspots' => $get('hotspots') ?? [], 'panoramaMap' => $panoramaMap];
                                 }
                                 $displayUrl = $url;
                                 if (str_starts_with($url, 'http') || str_starts_with($url, '/storage')) {
@@ -197,7 +199,7 @@ class PanoramaForm
                                 } elseif (Storage::disk('public')->exists($url)) {
                                     $displayUrl = Storage::disk('public')->url($url);
                                 }
-                                return ['panoramaUrl' => $displayUrl, 'hotspots' => $get('hotspots') ?? []];
+                                return ['panoramaUrl' => $displayUrl, 'hotspots' => $get('hotspots') ?? [], 'panoramaMap' => $panoramaMap];
                             }),
                         Repeater::make('hotspots')
                             ->relationship()

@@ -1,8 +1,9 @@
-<script>window._hsInitialPanoramaUrl = @js($panoramaUrl);</script>
+<script>window._hsInitialPanoramaUrl = @js($panoramaUrl); window._hsPanoramaMap = @js($panoramaMap ?? []);</script>
 <div
     wire:ignore
     x-data="{
         panoramaUrl: window._hsInitialPanoramaUrl,
+        panoramaMap: window._hsPanoramaMap || {},
         selectedIndex: 0,
         hotspotItems: [],
         init() {
@@ -63,10 +64,11 @@
             }, 800);
         },
         refresh() {
-            // chỉ đếm yaw/pitch/tooltip của hotspot repeater, không tính Default View (data.yaw)
+            // chỉ đếm yaw/pitch/tooltip/target của hotspot repeater, không tính Default View (data.yaw)
             const yawInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.yaw&quot;]'));
             const pitchInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.pitch&quot;]'));
             const tooltipInputs = Array.from(document.querySelectorAll('input[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;.tooltip&quot;]'));
+            const targetInputs = Array.from(document.querySelectorAll('[wire\\:model*=&quot;hotspots&quot;][wire\\:model*=&quot;target_panorama_id&quot;]'));
             if (!yawInputs.length) {
                 if (this.hotspotItems.length !== 0) this.hotspotItems = [];
                 this.$nextTick(() => { this.renameRepeaterHeaders(); this.injectRadiosIntoRepeater(); });
@@ -76,6 +78,7 @@
                 yaw: el.value,
                 pitch: pitchInputs[i] ? pitchInputs[i].value : '',
                 tooltip: tooltipInputs[i] ? tooltipInputs[i].value : '',
+                target_panorama_id: targetInputs[i] ? targetInputs[i].value : '',
             }));
             const changed = JSON.stringify(items) !== JSON.stringify(this.hotspotItems);
             if (changed) {
@@ -132,7 +135,7 @@
             });
         },
         renameRepeaterHeaders() {
-            // Đổi header thành Hotspot 1 - Target Panorama, Hotspot 2 - Target Panorama
+            // Đổi header thành Hotspot 1 - Target Panorama
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             items.forEach((item, idx) => {
                 const label = item.querySelector('.fi-fo-repeater-item-header span, .fi-fo-repeater-item-header p, [data-repeater-item-label], h4');
@@ -145,22 +148,25 @@
                     }
                 }
                 if (target) {
-                    // lấy tên target panorama từ TomSelect / select
                     let targetName = '';
-                    const tsItem = item.querySelector('.ts-control .item, .choices__item, [data-ts-item]');
-                    if (tsItem && tsItem.textContent.trim()) {
-                        targetName = tsItem.textContent.trim();
+                    const tid = this.hotspotItems[idx]?.target_panorama_id;
+                    if (tid && this.panoramaMap && this.panoramaMap[tid]) {
+                        targetName = this.panoramaMap[tid];
                     } else {
-                        const sel = item.querySelector('select');
-                        if (sel && sel.selectedOptions.length && sel.selectedOptions[0].value) {
-                            targetName = sel.selectedOptions[0].textContent.trim();
+                        const tsItem = item.querySelector('.ts-control .item, .choices__item, [data-ts-item]');
+                        if (tsItem && tsItem.textContent.trim()) {
+                            targetName = tsItem.textContent.trim();
                         } else {
-                            const inp = item.querySelector('[wire\\:model*=&quot;target_panorama_id&quot;]');
-                            if (inp && inp.value) targetName = `Panorama #${inp.value}`;
+                            const sel = item.querySelector('select');
+                            if (sel && sel.selectedOptions.length && sel.selectedOptions[0].value) {
+                                targetName = sel.selectedOptions[0].textContent.trim();
+                            } else {
+                                const inp = item.querySelector('[wire\\:model*=&quot;target_panorama_id&quot;]');
+                                if (inp && inp.value) targetName = this.panoramaMap[inp.value] || `Panorama #${inp.value}`;
+                            }
                         }
+                        if (targetName.includes('—')) targetName = targetName.split('—')[0].trim();
                     }
-                    // rút gọn: chỉ lấy phần trước — nếu dài
-                    if (targetName.includes('—')) targetName = targetName.split('—')[0].trim();
                     if (!targetName) targetName = 'Chưa chọn';
                     const newLabel = `Hotspot ${idx+1} - ${targetName}`;
                     if (target.textContent.trim() !== newLabel) target.textContent = newLabel;
