@@ -1,7 +1,8 @@
+<script>window._hsInitialPanoramaUrl = @js($panoramaUrl);</script>
 <div
     wire:ignore
     x-data="{
-        panoramaUrl: @js($panoramaUrl),
+        panoramaUrl: window._hsInitialPanoramaUrl,
         selectedIndex: 0,
         hotspotItems: [],
         init() {
