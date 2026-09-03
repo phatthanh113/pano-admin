@@ -217,12 +217,16 @@ class PanoramaForm
                                 if ($targetId) {
                                     try {
                                         $p = \App\Models\Panorama::with(['building','floor'])->find($targetId);
-                                        if ($p) return 'Hotspot - ' . $p->name . ' — ' . ($p->building?->name ?? '-') . ($p->floor ? '/' . $p->floor->name : '') . ' #' . $p->id;
+                                        if ($p) {
+                                            $targetLabel = $p->name . ' — ' . ($p->building?->name ?? '-') . ($p->floor ? '/' . $p->floor->name : '') . ' #' . $p->id;
+                                            // JS sẽ thêm index, PHP chỉ cần prefix Hotspot
+                                            return __('forms.hotspot') . ' - ' . $targetLabel;
+                                        }
                                     } catch (\Throwable $e) {}
                                 }
-                                if (!empty($state['tooltip'])) return 'Hotspot - ' . $state['tooltip'];
-                                if (!empty($targetId)) return 'Hotspot - Panorama #'.$targetId;
-                                return 'Hotspot mới';
+                                if (!empty($state['tooltip'])) return __('forms.hotspot') . ' - ' . $state['tooltip'];
+                                if (!empty($targetId)) return __('forms.hotspot') . ' - Panorama #' . $targetId;
+                                return __('forms.hotspot_new');
                             })
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
                             ->reorderable(false)

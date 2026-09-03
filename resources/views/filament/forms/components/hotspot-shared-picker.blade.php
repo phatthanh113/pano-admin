@@ -1,4 +1,17 @@
-<script>window._hsInitialPanoramaUrl = @js($panoramaUrl); window._hsPanoramaMap = @js($panoramaMap ?? []);</script>
+<script>
+window._hsInitialPanoramaUrl = @js($panoramaUrl);
+window._hsPanoramaMap = @js($panoramaMap ?? []);
+window._hsI18n = @js([
+    'hotspot' => __('forms.hotspot'),
+    'hotspot_new' => __('forms.hotspot_new'),
+    'hotspot_not_selected' => __('forms.hotspot_not_selected'),
+    'hotspot_choose_hint' => __('forms.hotspot_choose_hint'),
+    'hotspot_count' => __('forms.hotspot_count'),
+    'hotspot_no_hotspot' => __('forms.hotspot_no_hotspot'),
+    'hotspot_upload_first' => __('forms.hotspot_upload_first'),
+    'hotspot_header' => __('forms.hotspot_header'),
+]);
+</script>
 <div
     wire:ignore
     x-data="{
@@ -182,8 +195,9 @@
                             }
                         }
                     }
-                    if (!targetName) targetName = 'Chưa chọn';
-                    const newLabel = `Hotspot ${idx+1} - ${targetName}`;
+                    if (!targetName) targetName = (window._hsI18n && window._hsI18n.hotspot_not_selected) || 'Chưa chọn';
+                    let tmpl = (window._hsI18n && window._hsI18n.hotspot_header) || 'Hotspot :index - :target';
+                    const newLabel = tmpl.replace(':index', idx+1).replace(':target', targetName);
                     if (target.textContent.trim() !== newLabel) target.textContent = newLabel;
                 }
             });
@@ -264,7 +278,7 @@
     x-init="if (!panoramaUrl) { const cached = sessionStorage.getItem('hs_panoramaUrl_' + window.location.pathname); if (cached) panoramaUrl = cached; } else { sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, panoramaUrl); } $watch('panoramaUrl', v => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); })"
 >
     <div x-show="panoramaUrl" x-cloak>
-        <div class="text-xs text-gray-600 dark:text-gray-300">Chọn hotspot bằng radio bên dưới, sau đó click lên ảnh để đặt vị trí. Chấm viền xanh là hotspot đang chọn (hỗ trợ nhiều chấm đỏ).</div>
+        <div class="text-xs text-gray-600 dark:text-gray-300">{{ __('forms.hotspot_choose_hint') }}</div>
         <div class="relative border rounded-lg overflow-hidden bg-gray-50 p-2 flex justify-center">
             <div style="position:relative;display:inline-block;cursor:crosshair;max-width:650px;" x-on:click="onImageClick($event)">
                 <img
@@ -280,7 +294,7 @@
                     <div
                         x-show="hs.yaw !== '' && hs.yaw !== null && hs.pitch !== '' && hs.pitch !== null"
                         :data-hotspot-dot="idx"
-                        :title="(hs.tooltip || ('Hotspot #' + (idx+1))) + ' (yaw:' + hs.yaw + ', pitch:' + hs.pitch + ')'"
+                        :title="(hs.tooltip || ((window._hsI18n && window._hsI18n.hotspot || 'Hotspot') + ' #' + (idx+1))) + ' (yaw:' + hs.yaw + ', pitch:' + hs.pitch + ')'"
                         :style="`position:absolute;left:${normalizedLeft(hs.yaw)}%;top:${normalizedTop(hs.pitch)}%;width:14px;height:14px;background:#dc2626;border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.4);pointer-events:none;opacity:0.7;`"
                     ></div>
                 </template>
@@ -288,8 +302,8 @@
             </div>
         </div>
 
-        <div class="text-xs text-gray-500" x-text="`Đã có ${hotspotItems.length} hotspot(s). Radio đã chuyển vào trong từng Hotspot bên dưới — click radio hoặc header để chọn, rồi click lên ảnh để đặt Yaw/Pitch.`"></div>
-        <div x-show="hotspotItems.length === 0" class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">Chưa có hotspot nào. Bấm “Thêm hotspot” bên dưới, sau đó chọn radio trong Hotspot và click lên ảnh để đặt vị trí.</div>
+        <div class="text-xs text-gray-500" x-text="(window._hsI18n && window._hsI18n.hotspot_count ? window._hsI18n.hotspot_count.replace(':count', hotspotItems.length) : `Đã có ${hotspotItems.length} hotspot(s).`)"></div>
+        <div x-show="hotspotItems.length === 0" class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">{{ __('forms.hotspot_no_hotspot') }}</div>
 
         {{-- Fallback SSR dots khi JS chưa kịp load (ẩn khi Alpine ready) --}}
         <noscript>
@@ -307,7 +321,7 @@
         </noscript>
     </div>
     <div x-show="!panoramaUrl" x-cloak class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">
-        Hãy upload ảnh Panorama ở trên trước, sau đó ảnh chung sẽ hiện ở đây để bạn click chọn vị trí cho tất cả hotspot.
+        {{ __('forms.hotspot_upload_first') }}
     </div>
     {{-- Giữ @if cho SSR lần đầu nếu JS chưa load --}}
     @if(!$panoramaUrl)
