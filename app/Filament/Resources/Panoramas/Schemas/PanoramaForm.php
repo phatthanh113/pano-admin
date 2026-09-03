@@ -148,7 +148,12 @@ class PanoramaForm
                                 $url = $get('url');
                                 if (is_array($url)) $url = $url[0] ?? null;
                                 $panoramaMap = [];
-                                try { $panoramaMap = \App\Models\Panorama::where('is_active', true)->pluck('name','id')->toArray(); } catch (\Throwable $e) {}
+                                try {
+                                    $panoramas = \App\Models\Panorama::with(['building','floor'])->where('is_active', true)->get();
+                                    foreach ($panoramas as $p) {
+                                        $panoramaMap[$p->id] = $p->name . ' — ' . ($p->building?->name ?? '-') . ($p->floor ? '/' . $p->floor->name : '') . ' #' . $p->id;
+                                    }
+                                } catch (\Throwable $e) {}
                                 if (is_object($url) && method_exists($url, 'temporaryUrl')) {
                                     try { $tmp = $url->temporaryUrl(); return ['panoramaUrl' => $tmp, 'hotspots' => $get('hotspots') ?? [], 'panoramaMap' => $panoramaMap]; } catch (\Throwable $e) {}
                                 }
@@ -209,11 +214,12 @@ class PanoramaForm
                             ->collapsed()
                             ->itemLabel(function (array $state): ?string {
                                 $targetId = $state['target_panorama_id'] ?? null;
-                                $targetName = null;
                                 if ($targetId) {
-                                    try { $p = \App\Models\Panorama::find($targetId); $targetName = $p?->name; } catch (\Throwable $e) {}
+                                    try {
+                                        $p = \App\Models\Panorama::with(['building','floor'])->find($targetId);
+                                        if ($p) return 'Hotspot - ' . $p->name . ' — ' . ($p->building?->name ?? '-') . ($p->floor ? '/' . $p->floor->name : '') . ' #' . $p->id;
+                                    } catch (\Throwable $e) {}
                                 }
-                                if ($targetName) return 'Hotspot - ' . $targetName;
                                 if (!empty($state['tooltip'])) return 'Hotspot - ' . $state['tooltip'];
                                 if (!empty($targetId)) return 'Hotspot - Panorama #'.$targetId;
                                 return 'Hotspot mới';

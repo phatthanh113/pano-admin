@@ -181,7 +181,6 @@
                                 if (inp && inp.value) targetName = this.panoramaMap[inp.value] || `Panorama #${inp.value}`;
                             }
                         }
-                        if (targetName.includes('—')) targetName = targetName.split('—')[0].trim();
                     }
                     if (!targetName) targetName = 'Chưa chọn';
                     const newLabel = `Hotspot ${idx+1} - ${targetName}`;
