@@ -67,6 +67,17 @@ class PanoramaForm
                             ->image()
                             ->disk('public')->visibility('public')->directory('panoramas/thumbnails')->maxSize(5120)->imagePreviewHeight('150')->columnSpan(1),
                         FileUpload::make('url')->label(fn () => __('forms.panorama_image'))->image()->disk('public')->visibility('public')->directory('panoramas')->maxSize(10240)->imagePreviewHeight('150')->required()->columnSpan(1),
+                        \Filament\Forms\Components\Hidden::make('current_panorama_url')
+                            ->default(function ($record) {
+                                if (!$record?->url) return null;
+                                $url = $record->url;
+                                if (str_starts_with($url, 'http') || str_starts_with($url, '/storage')) return $url;
+                                if (str_starts_with($url, '/images') || str_starts_with($url, '/maps')) return $url;
+                                if (str_starts_with($url, 'panoramas/')) return \Illuminate\Support\Facades\Storage::disk('public')->url($url);
+                                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($url)) return \Illuminate\Support\Facades\Storage::disk('public')->url($url);
+                                return $url;
+                            })
+                            ->dehydrated(false),
                     ]),
 
                 Section::make(fn () => __('forms.section_map'))
@@ -156,6 +167,11 @@ class PanoramaForm
                                 } catch (\Throwable $e) {}
                                 if (is_object($url) && method_exists($url, 'temporaryUrl')) {
                                     try { $tmp = $url->temporaryUrl(); return ['panoramaUrl' => $tmp, 'hotspots' => $get('hotspots') ?? [], 'panoramaMap' => $panoramaMap]; } catch (\Throwable $e) {}
+                                }
+                                // Fallback: hidden current_panorama_url (luôn có khi edit)
+                                if (blank($url) || ! is_string($url)) {
+                                    $hiddenUrl = $get('current_panorama_url') ?? $get('../../current_panorama_url') ?? $get('../../../current_panorama_url') ?? $get('current_panorama_url');
+                                    if (!blank($hiddenUrl) && is_string($hiddenUrl)) $url = $hiddenUrl;
                                 }
                                 // $get('url') có thể blank sau khi Livewire thêm repeater item (request là /livewire/update, không có route record)
                                 if (blank($url) || ! is_string($url)) {

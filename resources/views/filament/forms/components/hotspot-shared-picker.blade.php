@@ -24,8 +24,10 @@ window._hsI18n = @js([
         selectedIndex: 0,
         hotspotItems: [],
         init() {
-            // Khôi phục panoramaUrl triệt để: ưu tiên PHP, rồi sessionStorage, rồi DOM FileUpload preview
+            // Khôi phục panoramaUrl triệt để: ưu tiên PHP, rồi hidden current_panorama_url, rồi sessionStorage, rồi DOM FileUpload preview
             const tryResolveFromDom = () => {
+                const hidden = document.querySelector('input[id*="current_panorama_url"]');
+                if (hidden && hidden.value) return hidden.value;
                 const imgs = Array.from(document.querySelectorAll('img'));
                 for (const img of imgs) {
                     const src = img.getAttribute('src') || img.src || '';
