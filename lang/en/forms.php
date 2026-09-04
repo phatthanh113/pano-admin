@@ -60,4 +60,5 @@ return [
     'hotspot_no_hotspot' => 'No hotspots yet. Click "Add hotspot" below, then select the radio inside the Hotspot and click on the image to set its position.',
     'hotspot_upload_first' => 'Please upload a Panorama image above first, then the shared image will appear here for you to click and set positions for all hotspots.',
     'hotspot_header' => 'Hotspot :index - :target',
+    'delete' => 'Delete',
 ];

@@ -231,6 +231,8 @@ class PanoramaForm
                             ->itemLabel(fn (array $state): ?string => __('forms.hotspot'))
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
                             ->reorderable(false)
+                            ->deletable(true)
+                            ->deleteAction(fn ($action) => $action->requiresConfirmation(false))
                             ->components([
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))

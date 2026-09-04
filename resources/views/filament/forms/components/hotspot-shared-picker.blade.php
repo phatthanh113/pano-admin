@@ -14,6 +14,7 @@ window._hsI18n = @js([
     'hotspot_no_hotspot' => __('forms.hotspot_no_hotspot'),
     'hotspot_upload_first' => __('forms.hotspot_upload_first'),
     'hotspot_header' => __('forms.hotspot_header'),
+    'delete' => __('forms.delete'),
 ]);
 </script>
 <div
@@ -284,6 +285,23 @@ window._hsI18n = @js([
                 previewDot.style.display = 'block';
             }
             setTimeout(() => { this.refresh(); this.updateDots(); }, 80);
+        },
+        deleteSelected() {
+            const items = document.querySelectorAll('.fi-fo-repeater-item');
+            const target = items[this.selectedIndex];
+            if (!target) return;
+            // Filament repeater delete button (trash) - tìm nút xóa trong header
+            let delBtn = target.querySelector('button[wire\\:click*=delete], [data-action*=delete]');
+            // fallback: nút thùng rác màu đỏ trong header (thường là button cuối cùng)
+            if (!delBtn) {
+                const btns = target.querySelectorAll('button');
+                // nút xóa thường có màu đỏ / trash icon, lấy nút cuối
+                delBtn = btns[btns.length - 1];
+            }
+            if (delBtn) {
+                delBtn.click();
+                setTimeout(() => { this.refresh(); this.updateDots(); }, 200);
+            }
         }
     }"
     class="space-y-2 mb-4"
@@ -315,6 +333,13 @@ window._hsI18n = @js([
         </div>
 
         <div class="text-xs text-gray-500" x-text="(window._hsI18n && window._hsI18n.hotspot_count ? window._hsI18n.hotspot_count.replace(':count', hotspotItems.length) : `Đã có ${hotspotItems.length} hotspot(s).`)"></div>
+        <div x-show="hotspotItems.length" class="flex items-center gap-2">
+            <button type="button" @click="deleteSelected()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span x-text="`${(window._hsI18n && window._hsI18n.delete) || 'Xóa'} ${(window._hsI18n && window._hsI18n.hotspot || 'Hotspot')} ${selectedIndex+1}`"></span>
+            </button>
+            <span class="text-xs text-gray-400">— click thùng rác trong header cũng xóa được</span>
+        </div>
         <div x-show="hotspotItems.length === 0" class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">{{ __('forms.hotspot_no_hotspot') }}</div>
 
         {{-- Fallback SSR dots khi JS chưa kịp load (ẩn khi Alpine ready) --}}

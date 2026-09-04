@@ -60,4 +60,5 @@ return [
     'hotspot_no_hotspot' => 'Chưa có hotspot nào. Bấm "Thêm hotspot" bên dưới, sau đó chọn radio trong Hotspot và click lên ảnh để đặt vị trí.',
     'hotspot_upload_first' => 'Hãy upload ảnh Panorama ở trên trước, sau đó ảnh chung sẽ hiện ở đây để bạn click chọn vị trí cho tất cả hotspot.',
     'hotspot_header' => 'Hotspot :index - :target',
+    'delete' => 'Xóa',
 ];
