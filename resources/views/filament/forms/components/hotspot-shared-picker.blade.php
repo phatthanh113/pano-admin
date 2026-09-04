@@ -290,17 +290,34 @@ window._hsI18n = @js([
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             const target = items[this.selectedIndex];
             if (!target) return;
-            // Filament repeater delete button (trash) - tìm nút xóa trong header
-            let delBtn = target.querySelector('button[wire\\:click*=delete], [data-action*=delete]');
-            // fallback: nút thùng rác màu đỏ trong header (thường là button cuối cùng)
-            if (!delBtn) {
-                const btns = target.querySelectorAll('button');
-                // nút xóa thường có màu đỏ / trash icon, lấy nút cuối
-                delBtn = btns[btns.length - 1];
+            const base = (window._hsI18n && window._hsI18n.hotspot) || 'Hotspot';
+            const delLabel = `${base} ${this.selectedIndex+1}`;
+            const confirmMsg = `${(window._hsI18n && window._hsI18n.delete) || 'Xóa'} ${delLabel}?`;
+            if (!confirm(confirmMsg)) return;
+            let delBtn = null;
+            const header = target.querySelector('.fi-fo-repeater-item-header');
+            if (header) {
+                const btns = header.querySelectorAll('button');
+                for (let i = btns.length - 1; i >= 0; i--) {
+                    const b = btns[i];
+                    const html = b.innerHTML || '';
+                    if (html.includes('M19 7') || html.includes('trash') || b.querySelector('svg') || (b.getAttribute('wire:click') && b.getAttribute('wire:click').includes('delete')) || b.getAttribute('title')?.toLowerCase().includes('delete')) {
+                        delBtn = b; break;
+                    }
+                }
+                if (!delBtn && btns.length) delBtn = btns[btns.length - 1];
             }
+            if (!delBtn) delBtn = target.querySelector('button');
             if (delBtn) {
                 delBtn.click();
-                setTimeout(() => { this.refresh(); this.updateDots(); }, 200);
+                // toast
+                setTimeout(() => {
+                    if (window.Filament && window.Filament.notify) {
+                        try { window.Filament.notify('success', `${(window._hsI18n && window._hsI18n.delete) || 'Đã xóa'} ${delLabel}`); } catch(e) {}
+                    }
+                    this.refresh(); this.updateDots();
+                    if (this.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) this.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1);
+                }, 300);
             }
         }
     }"
