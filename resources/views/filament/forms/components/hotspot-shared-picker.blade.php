@@ -18,7 +18,6 @@ window._hsI18n = @js([
 ]);
 </script>
 <div
-    wire:ignore
     x-data="{
         panoramaUrl: window._hsInitialPanoramaUrl,
         panoramaMap: window._hsPanoramaMap || {},
@@ -371,9 +370,10 @@ window._hsI18n = @js([
         },
         deleteSelected() { this.confirmDelete(); }
     }"
-    class="space-y-2 mb-4"
+     class="space-y-2 mb-4"
     x-init="if (!panoramaUrl) { const cached = sessionStorage.getItem('hs_panoramaUrl_' + window.location.pathname); if (cached) panoramaUrl = cached; } else { sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, panoramaUrl); } $watch('panoramaUrl', v => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); })"
 >
+    <div wire:ignore>
     <div x-show="panoramaUrl" x-cloak>
         <div class="text-xs text-gray-600 dark:text-gray-300">{{ __('forms.hotspot_choose_hint') }}</div>
         <div class="relative border rounded-lg overflow-hidden bg-gray-50 p-2 flex justify-center">
@@ -430,6 +430,7 @@ window._hsI18n = @js([
     @if(!$panoramaUrl)
         <div x-show="!panoramaUrl" class="hidden"></div>
     @endif
+    </div>
 
     <!-- Delete Confirm Modal - đẹp -->
     <template x-teleport="body">
