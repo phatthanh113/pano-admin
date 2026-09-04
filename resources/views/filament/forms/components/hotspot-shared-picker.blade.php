@@ -441,7 +441,8 @@ window._hsI18n = @js([
     </div>
 
     <!-- Delete Confirm Modal - đẹp -->
-    <div x-show="showDeleteModal" x-cloak data-hs-modal x-transition.opacity style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;" @click.self="showDeleteModal = false">
+    <template x-teleport="body">
+    <div x-show="showDeleteModal" x-cloak data-hs-modal x-transition.opacity style="position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;min-width:100vw;min-height:100vh;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;margin:0 !important;" @click.self="showDeleteModal = false">
         <div style="background:white;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
             <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
                 <div style="width:40px;height:40px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;color:#dc2626;flex-shrink:0;">
@@ -458,8 +459,10 @@ window._hsI18n = @js([
             </div>
         </div>
     </div>
+    </template>
 
     <!-- Toast -->
+    <template x-teleport="body">
     <div x-show="showToast" x-transition x-cloak data-hs-toast style="position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.2);z-index:9999;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;">
         <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         <span x-text="toastMessage"></span>
