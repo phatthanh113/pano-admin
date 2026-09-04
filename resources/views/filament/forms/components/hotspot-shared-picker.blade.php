@@ -304,29 +304,42 @@ window._hsI18n = @js([
             if (!target) return;
             const base = (window._hsI18n && window._hsI18n.hotspot) || 'Hotspot';
             const delLabel = `${base} ${this.selectedIndex+1}`;
-            // Thử xóa trực tiếp qua Livewire (đáng tin cậy nhất)
+            // Thử xóa trực tiếp qua Livewire (đáng tin cậy nhất) - hỗ trợ cả array và object
             let deletedViaWire = false;
-            try {
-                if (this.$wire) {
-                    let data = this.$wire.get('data.hotspots');
-                    if (Array.isArray(data) && data.length > this.selectedIndex) {
-                        data.splice(this.selectedIndex, 1);
-                        this.$wire.set('data.hotspots', data);
-                        deletedViaWire = true;
+            const tryWireDelete = (wireObj) => {
+                try {
+                    let d = wireObj.get('data.hotspots');
+                    if (!d) d = wireObj.get('hotspots');
+                    if (!d && wireObj.data) d = wireObj.data.hotspots;
+                    if (!d) return false;
+                    if (Array.isArray(d)) {
+                        if (d.length > this.selectedIndex) {
+                            d.splice(this.selectedIndex, 1);
+                            wireObj.set('data.hotspots', d);
+                            return true;
+                        }
+                    } else if (typeof d === 'object') {
+                        const keys = Object.keys(d);
+                        const k = keys[this.selectedIndex];
+                        if (k !== undefined) {
+                            delete d[k];
+                            // Livewire cần set lại object để trigger update
+                            wireObj.set('data.hotspots', {...d});
+                            return true;
+                        }
                     }
-                }
+                } catch(e) {}
+                return false;
+            };
+            try {
+                if (this.$wire) deletedViaWire = tryWireDelete(this.$wire);
                 if (!deletedViaWire && window.Livewire) {
                     const liveEl = document.querySelector('[wire\\:id]');
                     if (liveEl && window.Livewire.find) {
-                        const comp = window.Livewire.find(liveEl.getAttribute('wire:id'));
-                        if (comp) {
-                            let d2 = comp.get('data.hotspots');
-                            if (Array.isArray(d2) && d2.length > this.selectedIndex) {
-                                d2.splice(this.selectedIndex, 1);
-                                comp.set('data.hotspots', d2);
-                                deletedViaWire = true;
-                            }
-                        }
+                        try {
+                            const comp = window.Livewire.find(liveEl.getAttribute('wire:id'));
+                            if (comp) deletedViaWire = tryWireDelete(comp);
+                        } catch(e) {}
                     }
                 }
             } catch(e) { console.log('wire delete failed', e); }
@@ -419,6 +432,7 @@ window._hsI18n = @js([
     @endif
 
     <!-- Delete Confirm Modal - đẹp -->
+    <template x-teleport="body">
     <div x-show="showDeleteModal" x-cloak x-transition.opacity style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;" @click.self="showDeleteModal = false">
         <div style="background:white;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
             <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
@@ -436,10 +450,13 @@ window._hsI18n = @js([
             </div>
         </div>
     </div>
+    </template>
 
     <!-- Toast -->
+    <template x-teleport="body">
     <div x-show="showToast" x-transition x-cloak style="position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.2);z-index:9999;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;">
         <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         <span x-text="toastMessage"></span>
     </div>
+    </template>
 </div>
