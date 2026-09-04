@@ -24,6 +24,9 @@ window._hsI18n = @js([
         panoramaMap: window._hsPanoramaMap || {},
         selectedIndex: 0,
         hotspotItems: [],
+        showDeleteModal: false,
+        toastMessage: '',
+        showToast: false,
         init() {
             // Khôi phục panoramaUrl triệt để: ưu tiên PHP, rồi hidden current_panorama_url, rồi sessionStorage, rồi DOM FileUpload preview
             const tryResolveFromDom = () => {
@@ -286,14 +289,53 @@ window._hsI18n = @js([
             }
             setTimeout(() => { this.refresh(); this.updateDots(); }, 80);
         },
-        deleteSelected() {
+        showToastMessage(msg) {
+            this.toastMessage = msg;
+            this.showToast = true;
+            setTimeout(() => this.showToast = false, 3000);
+        },
+        confirmDelete() {
+            this.showDeleteModal = true;
+        },
+        executeDelete() {
+            this.showDeleteModal = false;
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             const target = items[this.selectedIndex];
             if (!target) return;
             const base = (window._hsI18n && window._hsI18n.hotspot) || 'Hotspot';
             const delLabel = `${base} ${this.selectedIndex+1}`;
-            const confirmMsg = `${(window._hsI18n && window._hsI18n.delete) || 'Xóa'} ${delLabel}?`;
-            if (!confirm(confirmMsg)) return;
+            // Thử xóa trực tiếp qua Livewire (đáng tin cậy nhất)
+            let deletedViaWire = false;
+            try {
+                if (this.$wire) {
+                    let data = this.$wire.get('data.hotspots');
+                    if (Array.isArray(data) && data.length > this.selectedIndex) {
+                        data.splice(this.selectedIndex, 1);
+                        this.$wire.set('data.hotspots', data);
+                        deletedViaWire = true;
+                    }
+                }
+                if (!deletedViaWire && window.Livewire) {
+                    const liveEl = document.querySelector('[wire\\:id]');
+                    if (liveEl && window.Livewire.find) {
+                        const comp = window.Livewire.find(liveEl.getAttribute('wire:id'));
+                        if (comp) {
+                            let d2 = comp.get('data.hotspots');
+                            if (Array.isArray(d2) && d2.length > this.selectedIndex) {
+                                d2.splice(this.selectedIndex, 1);
+                                comp.set('data.hotspots', d2);
+                                deletedViaWire = true;
+                            }
+                        }
+                    }
+                }
+            } catch(e) { console.log('wire delete failed', e); }
+            if (deletedViaWire) {
+                this.showToastMessage(`${(window._hsI18n && window._hsI18n.delete) || 'Đã xóa'} ${delLabel}`);
+                setTimeout(() => { this.refresh(); this.updateDots(); if (this.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) this.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); }, 300);
+                return;
+            }
+            // Fallback: click nút thùng rác trong header
             let delBtn = null;
             const header = target.querySelector('.fi-fo-repeater-item-header');
             if (header) {
@@ -310,16 +352,11 @@ window._hsI18n = @js([
             if (!delBtn) delBtn = target.querySelector('button');
             if (delBtn) {
                 delBtn.click();
-                // toast
-                setTimeout(() => {
-                    if (window.Filament && window.Filament.notify) {
-                        try { window.Filament.notify('success', `${(window._hsI18n && window._hsI18n.delete) || 'Đã xóa'} ${delLabel}`); } catch(e) {}
-                    }
-                    this.refresh(); this.updateDots();
-                    if (this.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) this.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1);
-                }, 300);
+                this.showToastMessage(`${(window._hsI18n && window._hsI18n.delete) || 'Đã xóa'} ${delLabel}`);
+                setTimeout(() => { this.refresh(); this.updateDots(); if (this.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) this.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); }, 300);
             }
-        }
+        },
+        deleteSelected() { this.confirmDelete(); }
     }"
     class="space-y-2 mb-4"
     x-init="if (!panoramaUrl) { const cached = sessionStorage.getItem('hs_panoramaUrl_' + window.location.pathname); if (cached) panoramaUrl = cached; } else { sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, panoramaUrl); } $watch('panoramaUrl', v => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); })"
@@ -380,4 +417,29 @@ window._hsI18n = @js([
     @if(!$panoramaUrl)
         <div x-show="!panoramaUrl" class="hidden"></div>
     @endif
+
+    <!-- Delete Confirm Modal - đẹp -->
+    <div x-show="showDeleteModal" x-cloak x-transition.opacity style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;" @click.self="showDeleteModal = false">
+        <div style="background:white;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+            <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+                <div style="width:40px;height:40px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;color:#dc2626;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+                <div>
+                    <h3 style="margin:0;font-weight:600;color:#111827;font-size:15px;" x-text="((window._hsI18n && window._hsI18n.delete) || 'Xóa') + ' ' + ((window._hsI18n && window._hsI18n.hotspot) || 'Hotspot') + ' ' + (selectedIndex+1) + '?'"></h3>
+                    <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">Bạn có chắc muốn xóa hotspot này? Hành động không thể hoàn tác.</p>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" @click="showDeleteModal = false" style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;font-size:13px;cursor:pointer;">Hủy</button>
+                <button type="button" @click="executeDelete()" style="padding:8px 16px;border-radius:8px;background:#dc2626;color:white;border:1px solid #dc2626;font-size:13px;font-weight:500;cursor:pointer;">{{ __('forms.delete') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div x-show="showToast" x-transition x-cloak style="position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.2);z-index:9999;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;">
+        <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <span x-text="toastMessage"></span>
+    </div>
 </div>
