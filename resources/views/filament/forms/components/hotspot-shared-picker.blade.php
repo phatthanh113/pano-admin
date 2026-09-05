@@ -17,6 +17,7 @@ window._hsI18n = @js([
     'delete' => __('forms.delete'),
 ]);
 </script>
+<style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
 <div
     x-data="{
         panoramaUrl: window._hsInitialPanoramaUrl,
@@ -25,6 +26,10 @@ window._hsI18n = @js([
         hotspotItems: [],
         toastMessage: '',
         showToast: false,
+        isDeleting: false,
+        switching: false,
+        _refreshTimer: null,
+        _dotsRaf: null,
         init() {
             // Khôi phục panoramaUrl triệt để: ưu tiên PHP, rồi hidden current_panorama_url, rồi sessionStorage, rồi DOM FileUpload preview
             const tryResolveFromDom = () => {
@@ -53,36 +58,58 @@ window._hsI18n = @js([
             } else {
                 sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, this.panoramaUrl);
             }
-            // quan sát FileUpload preview thay đổi (khi upload mới)
+            // helper debounce cho refresh
+            this.scheduleRefresh = () => {
+                if (this._refreshTimer) return;
+                this._refreshTimer = setTimeout(() => { this._refreshTimer = null; this.refresh(); }, 45);
+            };
+            this.scheduleUpdateDots = () => {
+                if (this._dotsRaf) cancelAnimationFrame(this._dotsRaf);
+                this._dotsRaf = requestAnimationFrame(() => { this._dotsRaf = null; this.updateDots(); });
+            };
+            // quan sát FileUpload preview thay đổi (khi upload mới) - chỉ quan sát ảnh panorama, debounce
             const domObserver = new MutationObserver(() => {
                 const domUrl = tryResolveFromDom();
                 if (domUrl && domUrl !== this.panoramaUrl) {
                     this.panoramaUrl = domUrl;
                     sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, domUrl);
                 }
-                this.refresh();
+                this.scheduleRefresh();
             });
-            domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+            // chỉ observe phần form thay vì toàn body để giảm khựng
+            const formRoot = this.$el.closest('form') || document.querySelector('form');
+            if (formRoot) domObserver.observe(formRoot, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+            else domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
 
             this.refresh();
-            this.$watch('selectedIndex', () => this.updateDots());
+            this.$watch('selectedIndex', () => {
+                this.switching = true;
+                this.scheduleUpdateDots();
+                // hiệu ứng loading ngắn để tránh cảm giác khựng
+                setTimeout(() => { this.switching = false; }, 180);
+                // highlight header ngay lập tức không đợi refresh
+                this.$nextTick(() => this.injectRadiosIntoRepeater());
+            });
             this.$watch('panoramaUrl', (v) => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); });
-            this.$nextTick(() => { this.refresh(); this.updateDots(); });
-            // theo dõi khi repeater thêm/xóa item (Livewire re-render)
-            const observer = new MutationObserver(() => this.refresh());
-            observer.observe(document.body, { childList: true, subtree: true });
+            this.$nextTick(() => { this.refresh(); this.scheduleUpdateDots(); });
+            // theo dõi khi repeater thêm/xóa item - chỉ observe repeater, debounce
+            const repeaterRoot = document.querySelector('.fi-fo-repeater') || formRoot || document.body;
+            const observer = new MutationObserver(() => this.scheduleRefresh());
+            observer.observe(repeaterRoot, { childList: true, subtree: true });
             // Livewire v3 hook nếu có
             if (window.Livewire) {
-                try { Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => { succeed(({ snapshot, effect }) => { setTimeout(() => { const domUrl2 = tryResolveFromDom(); if (domUrl2 && !this.panoramaUrl) this.panoramaUrl = domUrl2; this.refresh(); }, 50); }); }); } catch(e) {}
-                document.addEventListener('livewire:update', () => setTimeout(() => this.refresh(), 100));
+                try { Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => { succeed(({ snapshot, effect }) => { setTimeout(() => { const domUrl2 = tryResolveFromDom(); if (domUrl2 && !this.panoramaUrl) this.panoramaUrl = domUrl2; this.scheduleRefresh(); }, 50); }); }); } catch(e) {}
+                document.addEventListener('livewire:update', () => setTimeout(() => this.scheduleRefresh(), 100));
             }
+            // polling nhẹ chỉ khi chưa có panoramaUrl, tránh gọi refresh liên tục khi đã có
             setInterval(() => {
                 if (!this.panoramaUrl) {
                     const domUrl = tryResolveFromDom();
                     if (domUrl) this.panoramaUrl = domUrl;
+                    else return;
                 }
-                this.refresh();
-            }, 800);
+                // chỉ refresh khi đang switching hoặc hotspot count thay đổi, không spam mỗi 800ms
+            }, 2500);
         },
         refresh() {
             // Lấy dữ liệu từng repeater item trực tiếp, tránh lỗi wire:model selector
@@ -127,10 +154,16 @@ window._hsI18n = @js([
                 this.injectRadiosIntoRepeater();
             }
         },
+        deleteAt(idx) {
+            if (this.isDeleting) return;
+            this.selectedIndex = idx;
+            this.$nextTick(() => this.deleteSelected());
+        },
         injectRadiosIntoRepeater() {
-            // Đưa radio vào ngay trong header của từng phần tử repeater
+            try {
+            // Đưa radio vào ngay trong header của từng phần tử repeater + nút xóa icon-only
             const items = document.querySelectorAll('.fi-fo-repeater-item');
-            items.forEach((item, idx) => {
+            items.forEach((item, idx) => { try {
                 const header = item.querySelector('.fi-fo-repeater-item-header') || item.querySelector('[class*=repeater-item-header]') || item.firstElementChild;
                 if (!header) return;
                 let radio = header.querySelector(':scope > input.hs-inline-radio');
@@ -143,7 +176,6 @@ window._hsI18n = @js([
                     radio.addEventListener('click', (e) => {
                         e.stopPropagation();
                         this.selectedIndex = idx;
-                        this.$nextTick(() => this.updateDots());
                     });
                     // chặn collapse khi click radio
                     radio.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -154,7 +186,6 @@ window._hsI18n = @js([
                         if (e.target.closest('button') || e.target.closest('[data-action]')) return;
                         if (e.target === radio) return;
                         this.selectedIndex = idx;
-                        this.$nextTick(() => this.updateDots());
                     });
                 }
                 radio.checked = this.selectedIndex === idx;
@@ -169,7 +200,42 @@ window._hsI18n = @js([
                     header.style.background = '';
                     header.style.borderLeft = '';
                 }
+                // inject icon-only delete button at the end of header (stable, không clone mỗi lần để tránh vòng lặp MutationObserver)
+                let delBtn = header.querySelector(':scope > button.hs-delete-row');
+                if (!delBtn) {
+                    delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'hs-delete-row shrink-0';
+                    delBtn.style.marginLeft = 'auto';
+                    delBtn.style.display = 'inline-flex';
+                    delBtn.style.alignItems = 'center';
+                    delBtn.style.justifyContent = 'center';
+                    delBtn.style.width = '28px';
+                    delBtn.style.height = '28px';
+                    delBtn.style.borderRadius = '6px';
+                    delBtn.style.border = '1px solid transparent';
+                    delBtn.style.background = 'transparent';
+                    delBtn.style.color = '#9ca3af';
+                    delBtn.style.cursor = 'pointer';
+                    delBtn.style.transition = 'all 0.15s';
+                    delBtn.innerHTML = '<svg xmlns=\'http://www.w3.org/2000/svg\' style=\'width:16px;height:16px;\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16\'/></svg>';
+                    delBtn.addEventListener('mouseenter', () => { delBtn.style.color = '#dc2626'; delBtn.style.background = '#fef2f2'; delBtn.style.borderColor = '#fecaca'; });
+                    delBtn.addEventListener('mouseleave', () => { delBtn.style.color = '#9ca3af'; delBtn.style.background = 'transparent'; delBtn.style.borderColor = 'transparent'; });
+                    delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const i = parseInt(delBtn.dataset.idx, 10);
+                        if (!isNaN(i)) this.deleteAt(i);
+                    });
+                    header.appendChild(delBtn);
+                }
+                delBtn.dataset.idx = idx;
+                delBtn.title = (window._hsI18n && window._hsI18n.delete ? window._hsI18n.delete : 'Xóa') + ' Hotspot ' + (idx + 1);
+                delBtn.setAttribute('aria-label', delBtn.title);
+            } catch(e) { console.warn('hs inject error', e); }
             });
+            } catch(e) { console.warn('hs inject outer', e); }
         },
         renameRepeaterHeaders() {
             // Đổi header thành Hotspot 1 - Target Panorama
@@ -293,21 +359,25 @@ window._hsI18n = @js([
             setTimeout(() => this.showToast = false, 3000);
         },
         deleteSelected() {
+            if (this.isDeleting) return;
+            this.isDeleting = true;
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             const target = items[this.selectedIndex];
             if (!target) {
                 this.showToastMessage('Chưa chọn hotspot để xóa');
+                this.isDeleting = false;
                 return;
             }
             // 1) Thử click nút xóa native của Filament (sẽ hiện modal requiresConfirmation)
-            let delBtn = target.querySelector('button[wire\\:click*=delete]')
-                      || target.querySelector('[data-action*=delete] button');
+            let delBtn = target.querySelector('button[wire\\:click*=delete]:not(.hs-delete-row)')
+                      || target.querySelector('[data-action*=delete] button:not(.hs-delete-row)');
             if (!delBtn) {
                 const header = target.querySelector('.fi-fo-repeater-item-header');
                 if (header) {
-                    const btns = header.querySelectorAll('button');
+                    const btns = header.querySelectorAll('button:not(.hs-delete-row)');
                     for (let i = btns.length - 1; i >= 0; i--) {
                         const b = btns[i];
+                        if (b.classList.contains('hs-delete-row')) continue;
                         const html = b.innerHTML || '';
                         const wc = b.getAttribute('wire:click') || '';
                         if (html.includes('M19 7') || html.includes('trash') || b.querySelector('svg') || wc.includes('delete') || wc.includes('mountAction') || b.getAttribute('title')?.toLowerCase().includes('delete')) {
@@ -318,14 +388,14 @@ window._hsI18n = @js([
                     if (!delBtn && btns.length) {
                         const endActions = header.querySelector('.fi-fo-repeater-item-header-end-actions');
                         if (endActions) {
-                            const eb = endActions.querySelectorAll('button');
+                            const eb = endActions.querySelectorAll('button:not(.hs-delete-row)');
                             if (eb.length) delBtn = eb[eb.length - 1];
                         }
                         if (!delBtn) delBtn = btns[btns.length - 1];
                     }
                 }
             }
-            if (!delBtn) delBtn = target.querySelector('button');
+            if (!delBtn) delBtn = target.querySelector('button:not(.hs-delete-row)');
             if (delBtn) {
                 delBtn.click();
                 // Kiểm tra sau 600ms nếu Filament modal không hiện (do selector sai hoặc Livewire chưa mount) -> fallback
@@ -335,7 +405,9 @@ window._hsI18n = @js([
                     if (!isModalVisible) {
                         this.fallbackDeleteWithConfirm();
                     } else {
-                        setTimeout(() => { this.refresh(); this.updateDots(); }, 400);
+                        setTimeout(() => { this.refresh(); this.updateDots(); this.isDeleting = false; }, 400);
+                        // fallback: nếu user đóng modal native thì reset sau 2s
+                        setTimeout(() => { this.isDeleting = false; }, 2000);
                     }
                 }, 600);
                 return;
@@ -360,7 +432,7 @@ window._hsI18n = @js([
             overlay.style.justifyContent = 'center';
             overlay.style.zIndex = '99999';
             overlay.style.padding = '16px';
-            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); self.isDeleting = false; document.removeEventListener('keydown', escHandler); } });
             const box = document.createElement('div');
             box.style.background = 'white';
             box.style.borderRadius = '12px';
@@ -416,7 +488,7 @@ window._hsI18n = @js([
             btnCancel.style.background = 'white';
             btnCancel.style.fontSize = '13px';
             btnCancel.style.cursor = 'pointer';
-            btnCancel.addEventListener('click', () => overlay.remove());
+            btnCancel.addEventListener('click', () => { overlay.remove(); self.isDeleting = false; document.removeEventListener('keydown', escHandler); });
             const btnDelete = document.createElement('button');
             btnDelete.type = 'button';
             btnDelete.textContent = base;
@@ -433,7 +505,7 @@ window._hsI18n = @js([
             overlay.appendChild(box);
             document.body.appendChild(overlay);
             // ESC to close
-            const escHandler = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+            const escHandler = (e) => { if (e.key === 'Escape') { overlay.remove(); self.isDeleting = false; document.removeEventListener('keydown', escHandler); } };
             document.addEventListener('keydown', escHandler);
             // Khi bấm Xóa mới thực hiện xóa
             btnDelete.addEventListener('click', () => {
@@ -441,7 +513,7 @@ window._hsI18n = @js([
                 document.removeEventListener('keydown', escHandler);
                 const items2 = document.querySelectorAll('.fi-fo-repeater-item');
                 const target2 = items2[self.selectedIndex];
-                if (!target2) return;
+                if (!target2) { self.isDeleting = false; return; }
                 let deletedViaWire = false;
                 const tryWireDelete = (wireObj) => {
                     try {
@@ -481,11 +553,12 @@ window._hsI18n = @js([
                 } catch(e) { console.log('wire delete failed', e); }
                 if (deletedViaWire) {
                     self.showToastMessage('Đã xóa Hotspot ' + (self.selectedIndex+1));
-                    setTimeout(() => { self.refresh(); self.updateDots(); if (self.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) self.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); }, 300);
+                    setTimeout(() => { self.refresh(); self.updateDots(); if (self.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) self.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); self.isDeleting = false; }, 300);
                     return;
                 }
-                const btn2 = target2.querySelector('button');
+                const btn2 = target2.querySelector('button:not(.hs-delete-row)');
                 if (btn2) btn2.click();
+                setTimeout(() => { self.isDeleting = false; }, 800);
             });
         }
     }"
@@ -515,16 +588,14 @@ window._hsI18n = @js([
                     ></div>
                 </template>
                 <div id="shared-hotspot-preview-dot" style="display:none;position:absolute;width:14px;height:14px;background:#22c55e;border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);z-index:20;box-shadow:0 1px 6px rgba(0,0,0,0.5);pointer-events:none;"></div>
+                <!-- Loading khi đổi hotspot để tránh cảm giác khựng -->
+                <div x-show="switching" x-transition.opacity x-cloak style="position:absolute;inset:0;background:rgba(255,255,255,0.55);display:flex;align-items:center;justify-content:center;z-index:30;backdrop-filter:blur(1px);pointer-events:none;">
+                    <svg style="width:22px;height:22px;animation:spin 0.7s linear infinite;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="#3b82f6" stroke-width="3" opacity="0.2"/><path d="M22 12a10 10 0 0 0-10-10" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/></svg>
+                </div>
             </div>
         </div>
 
         <div class="text-xs text-gray-500" x-text="(window._hsI18n && window._hsI18n.hotspot_count ? window._hsI18n.hotspot_count.replace(':count', hotspotItems.length) : `Đã có ${hotspotItems.length} hotspot(s).`)"></div>
-        <div x-show="hotspotItems.length" style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-            <button type="button" @click="deleteSelected()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;font-weight:500;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;cursor:pointer;">
-                <svg xmlns="http://www.w3.org/2000/svg" style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                <span x-text="`${(window._hsI18n && window._hsI18n.delete) || 'Xóa'} ${(window._hsI18n && window._hsI18n.hotspot || 'Hotspot')} ${selectedIndex+1}`"></span>
-            </button>
-        </div>
         <div x-show="hotspotItems.length === 0" class="text-xs text-amber-600 border border-amber-200 bg-amber-50 rounded p-2">{{ __('forms.hotspot_no_hotspot') }}</div>
 
         {{-- Fallback SSR dots khi JS chưa kịp load (ẩn khi Alpine ready) --}}

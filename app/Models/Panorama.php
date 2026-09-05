@@ -11,7 +11,7 @@ class Panorama extends Model
 {
     protected $fillable = [
         'project_id', 'building_id', 'floor_id',
-        'slug', 'name', 'code', 'number', 'thumbnail', 'url', 'label',
+        'slug', 'name', 'code', 'number', 'thumbnail', 'url', 'extra_images', 'label',
         'map_x', 'map_y', 'map_angle', 'yaw', 'pitch', 'sort_order', 'is_active'
     ];
 
@@ -22,6 +22,7 @@ class Panorama extends Model
         'yaw' => 'decimal:2',
         'pitch' => 'decimal:2',
         'is_active' => 'boolean',
+        'extra_images' => 'array',
     ];
 
     protected static function booted(): void

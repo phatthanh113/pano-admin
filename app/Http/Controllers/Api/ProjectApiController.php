@@ -148,6 +148,13 @@ class ProjectApiController extends Controller
 
     private function formatPanorama($p): array
     {
+        $extra = [];
+        if (!empty($p->extra_images) && is_array($p->extra_images)) {
+            foreach ($p->extra_images as $img) {
+                if (blank($img)) continue;
+                $extra[] = $this->resolveUrl($img);
+            }
+        }
         return [
             'id' => $p->slug,
             'db_id' => $p->id,
@@ -157,6 +164,8 @@ class ProjectApiController extends Controller
             'label' => $p->label,
             'thumbnail' => $this->resolveUrl($p->thumbnail),
             'url' => $this->resolveUrl($p->url),
+            'extraImages' => $extra,
+            'extra_images' => $extra, // snake alias cho frontend cũ
             'mapPosition' => [
                 'x' => $p->map_x !== null ? (float) $p->map_x : null,
                 'y' => $p->map_y !== null ? (float) $p->map_y : null,

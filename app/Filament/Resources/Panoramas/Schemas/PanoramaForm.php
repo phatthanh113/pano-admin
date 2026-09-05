@@ -80,6 +80,26 @@ class PanoramaForm
                             ->dehydrated(false),
                     ]),
 
+                Section::make(fn () => __('forms.section_extra_images') !== 'forms.section_extra_images' ? __('forms.section_extra_images') : 'Ảnh chi tiết thêm')
+                    ->description(fn () => __('forms.section_extra_images_desc') !== 'forms.section_extra_images_desc' ? __('forms.section_extra_images_desc') : 'Upload nhiều ảnh thường cho panorama này. Frontend sẽ hiện nút/gallery nếu có.')
+                    ->columnSpanFull()
+                    ->collapsed(false)
+                    ->components([
+                        FileUpload::make('extra_images')
+                            ->label(fn () => __('forms.extra_images') !== 'forms.extra_images' ? __('forms.extra_images') : 'Ảnh chi tiết thêm')
+                            ->helperText(fn () => __('forms.extra_images_help'))
+                            ->multiple()
+                            ->reorderable()
+                            ->appendFiles()
+                            ->image()
+                            ->disk('public')
+                            ->visibility('public')
+                            ->directory('panoramas/extra')
+                            ->maxSize(5120)
+                            ->imagePreviewHeight('120')
+                            ->columnSpanFull(),
+                    ]),
+
                 Section::make(fn () => __('forms.section_map'))
                     ->columnSpanFull()
                     ->columns(1)
