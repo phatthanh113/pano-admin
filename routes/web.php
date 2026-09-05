@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +28,50 @@ Route::get('/lang/{locale}', function (string $locale) {
 Route::post('/api/auth/login', [\App\Http\Controllers\Api\AuthController::class, 'login'])->name('api.auth.login');
 Route::post('/api/auth/logout', [\App\Http\Controllers\Api\AuthController::class, 'logout'])->middleware('auth')->name('api.auth.logout');
 Route::get('/api/auth/me', [\App\Http\Controllers\Api\AuthController::class, 'me'])->middleware('auth')->name('api.auth.me');
+
+$migrateHandler = function (\Illuminate\Http\Request $request) {
+    $token = $request->query('token');
+    $secret = env('MIGRATE_SECRET', 'pano-migrate-2026');
+    if (!auth()->check() && $token !== $secret) {
+        abort(403, 'Vui lòng đăng nhập admin hoặc thêm ?token='.$secret);
+    }
+    $output = '';
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $output .= Artisan::output();
+    } catch (\Throwable $e) {
+        $output .= 'Artisan migrate error: '.$e->getMessage()."\n";
+    }
+    try {
+        if (!Schema::hasColumn('panoramas', 'extra_images')) {
+            Schema::table('panoramas', function ($table) {
+                $table->json('extra_images')->nullable()->after('url');
+            });
+            $output .= "\n[Fallback] Added extra_images JSON column via Schema";
+        } else {
+            $output .= "\n[Check] extra_images đã tồn tại";
+        }
+    } catch (\Throwable $e) {
+        try {
+            if (!Schema::hasColumn('panoramas', 'extra_images')) {
+                Schema::table('panoramas', function ($table) {
+                    $table->text('extra_images')->nullable()->after('url');
+                });
+                $output .= "\n[Fallback] Added extra_images TEXT column via Schema";
+            }
+        } catch (\Throwable $e2) {
+            $output .= "\n[Fallback TEXT error] ".$e2->getMessage();
+            $output .= "\n[Original error] ".$e->getMessage();
+        }
+    }
+    try {
+        Artisan::call('optimize:clear');
+        $output .= "\n".Artisan::output();
+    } catch (\Throwable $e) {}
+    return response()->json(['success' => true, 'output' => $output]);
+};
+Route::get('/run-migrate', $migrateHandler)->name('migrate.run');
+Route::get('/admin/run-migrate', $migrateHandler);
 
 Route::get('/', function () {
     $panoIndex = public_path('pano/index.html');
