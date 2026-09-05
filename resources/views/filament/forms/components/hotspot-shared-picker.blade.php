@@ -23,7 +23,6 @@ window._hsI18n = @js([
         panoramaMap: window._hsPanoramaMap || {},
         selectedIndex: 0,
         hotspotItems: [],
-        showDeleteModal: false,
         toastMessage: '',
         showToast: false,
         init() {
@@ -68,14 +67,6 @@ window._hsI18n = @js([
             this.refresh();
             this.$watch('selectedIndex', () => this.updateDots());
             this.$watch('panoramaUrl', (v) => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); });
-            this.$watch('showDeleteModal', (val) => {
-                if (val) this.$nextTick(() => {
-                    const m = document.querySelector('[data-hs-modal]');
-                    if (m && m.parentElement !== document.body) document.body.appendChild(m);
-                    const t = document.querySelector('[data-hs-toast]');
-                    if (t && t.parentElement !== document.body) document.body.appendChild(t);
-                });
-            });
             this.$nextTick(() => { this.refresh(); this.updateDots(); });
             // theo dõi khi repeater thêm/xóa item (Livewire re-render)
             const observer = new MutationObserver(() => this.refresh());
@@ -301,84 +292,204 @@ window._hsI18n = @js([
             this.showToast = true;
             setTimeout(() => this.showToast = false, 3000);
         },
-        confirmDelete() {
-            this.showDeleteModal = true;
-        },
-        executeDelete() {
-            this.showDeleteModal = false;
+        deleteSelected() {
             const items = document.querySelectorAll('.fi-fo-repeater-item');
             const target = items[this.selectedIndex];
-            if (!target) return;
-            const base = (window._hsI18n && window._hsI18n.hotspot) || 'Hotspot';
-            const delLabel = `${base} ${this.selectedIndex+1}`;
-            // Thử xóa trực tiếp qua Livewire (đáng tin cậy nhất) - hỗ trợ cả array và object
-            let deletedViaWire = false;
-            const tryWireDelete = (wireObj) => {
-                try {
-                    let d = wireObj.get('data.hotspots');
-                    if (!d) d = wireObj.get('hotspots');
-                    if (!d && wireObj.data) d = wireObj.data.hotspots;
-                    if (!d) return false;
-                    if (Array.isArray(d)) {
-                        if (d.length > this.selectedIndex) {
-                            d.splice(this.selectedIndex, 1);
-                            wireObj.set('data.hotspots', d);
-                            return true;
-                        }
-                    } else if (typeof d === 'object') {
-                        const keys = Object.keys(d);
-                        const k = keys[this.selectedIndex];
-                        if (k !== undefined) {
-                            delete d[k];
-                            // Livewire cần set lại object để trigger update
-                            wireObj.set('data.hotspots', {...d});
-                            return true;
-                        }
-                    }
-                } catch(e) {}
-                return false;
-            };
-            try {
-                if (this.$wire) deletedViaWire = tryWireDelete(this.$wire);
-                if (!deletedViaWire && window.Livewire) {
-                    const liveEl = document.querySelector('[wire\\:id]');
-                    if (liveEl && window.Livewire.find) {
-                        try {
-                            const comp = window.Livewire.find(liveEl.getAttribute('wire:id'));
-                            if (comp) deletedViaWire = tryWireDelete(comp);
-                        } catch(e) {}
-                    }
-                }
-            } catch(e) { console.log('wire delete failed', e); }
-            if (deletedViaWire) {
-                this.showToastMessage(`${(window._hsI18n && window._hsI18n.delete) || 'Đã xóa'} ${delLabel}`);
-                setTimeout(() => { this.refresh(); this.updateDots(); if (this.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) this.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); }, 300);
+            if (!target) {
+                this.showToastMessage('Chưa chọn hotspot để xóa');
                 return;
             }
-            // Fallback: click nút thùng rác trong header
-            let delBtn = null;
-            const header = target.querySelector('.fi-fo-repeater-item-header');
-            if (header) {
-                const btns = header.querySelectorAll('button');
-                for (let i = btns.length - 1; i >= 0; i--) {
-                    const b = btns[i];
-                    const html = b.innerHTML || '';
-                    if (html.includes('M19 7') || html.includes('trash') || b.querySelector('svg') || (b.getAttribute('wire:click') && b.getAttribute('wire:click').includes('delete')) || b.getAttribute('title')?.toLowerCase().includes('delete')) {
-                        delBtn = b; break;
+            // 1) Thử click nút xóa native của Filament (sẽ hiện modal requiresConfirmation)
+            let delBtn = target.querySelector('button[wire\\:click*=delete]')
+                      || target.querySelector('[data-action*=delete] button');
+            if (!delBtn) {
+                const header = target.querySelector('.fi-fo-repeater-item-header');
+                if (header) {
+                    const btns = header.querySelectorAll('button');
+                    for (let i = btns.length - 1; i >= 0; i--) {
+                        const b = btns[i];
+                        const html = b.innerHTML || '';
+                        const wc = b.getAttribute('wire:click') || '';
+                        if (html.includes('M19 7') || html.includes('trash') || b.querySelector('svg') || wc.includes('delete') || wc.includes('mountAction') || b.getAttribute('title')?.toLowerCase().includes('delete')) {
+                            delBtn = b; break;
+                        }
+                    }
+                    // fallback: lấy nút cuối trong header-end-actions (thường là delete)
+                    if (!delBtn && btns.length) {
+                        const endActions = header.querySelector('.fi-fo-repeater-item-header-end-actions');
+                        if (endActions) {
+                            const eb = endActions.querySelectorAll('button');
+                            if (eb.length) delBtn = eb[eb.length - 1];
+                        }
+                        if (!delBtn) delBtn = btns[btns.length - 1];
                     }
                 }
-                if (!delBtn && btns.length) delBtn = btns[btns.length - 1];
             }
             if (!delBtn) delBtn = target.querySelector('button');
             if (delBtn) {
                 delBtn.click();
-                this.showToastMessage(`${(window._hsI18n && window._hsI18n.delete) || 'Đã xóa'} ${delLabel}`);
-                setTimeout(() => { this.refresh(); this.updateDots(); if (this.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) this.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); }, 300);
+                // Kiểm tra sau 600ms nếu Filament modal không hiện (do selector sai hoặc Livewire chưa mount) -> fallback
+                setTimeout(() => {
+                    const modal = document.querySelector('.fi-modal-window, [id*=mountAction], .fi-ac-modal, dialog[open]');
+                    const isModalVisible = modal && modal.offsetParent !== null;
+                    if (!isModalVisible) {
+                        this.fallbackDeleteWithConfirm();
+                    } else {
+                        setTimeout(() => { this.refresh(); this.updateDots(); }, 400);
+                    }
+                }, 600);
+                return;
             }
+            this.fallbackDeleteWithConfirm();
         },
-        deleteSelected() { this.confirmDelete(); }
+        fallbackDeleteWithConfirm() {
+            const base = (window._hsI18n && window._hsI18n.delete) || 'Xóa';
+            const heading = base + ' Hotspot ' + (this.selectedIndex + 1) + '?';
+            const desc = 'Bạn có chắc muốn xóa hotspot này? Hành động không thể hoàn tác.';
+            const self = this;
+            // Modal đẹp - append thẳng ra body nên không bị lỗi fixed trong ancestor có transform (như ảnh 1 góc)
+            const prev = document.getElementById('hs-beautiful-confirm');
+            if (prev) prev.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'hs-beautiful-confirm';
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.background = 'rgba(0,0,0,0.45)';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.zIndex = '99999';
+            overlay.style.padding = '16px';
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+            const box = document.createElement('div');
+            box.style.background = 'white';
+            box.style.borderRadius = '12px';
+            box.style.padding = '24px';
+            box.style.maxWidth = '420px';
+            box.style.width = '100%';
+            box.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
+            box.style.transform = 'scale(1)';
+            // header
+            const headRow = document.createElement('div');
+            headRow.style.display = 'flex';
+            headRow.style.gap = '12px';
+            headRow.style.alignItems = 'flex-start';
+            headRow.style.marginBottom = '16px';
+            const iconWrap = document.createElement('div');
+            iconWrap.style.width = '40px';
+            iconWrap.style.height = '40px';
+            iconWrap.style.borderRadius = '50%';
+            iconWrap.style.background = '#fef2f2';
+            iconWrap.style.display = 'flex';
+            iconWrap.style.alignItems = 'center';
+            iconWrap.style.justifyContent = 'center';
+            iconWrap.style.color = '#dc2626';
+            iconWrap.style.flexShrink = '0';
+            iconWrap.innerHTML = '<svg xmlns=\'http://www.w3.org/2000/svg\' style=\'width:20px;height:20px;\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z\'/></svg>';
+            const textWrap = document.createElement('div');
+            const h3 = document.createElement('div');
+            h3.textContent = heading;
+            h3.style.margin = '0';
+            h3.style.fontWeight = '600';
+            h3.style.color = '#111827';
+            h3.style.fontSize = '15px';
+            const p = document.createElement('div');
+            p.textContent = desc;
+            p.style.margin = '4px 0 0';
+            p.style.fontSize = '13px';
+            p.style.color = '#6b7280';
+            p.style.lineHeight = '1.5';
+            textWrap.appendChild(h3); textWrap.appendChild(p);
+            headRow.appendChild(iconWrap); headRow.appendChild(textWrap);
+            // buttons
+            const btnRow = document.createElement('div');
+            btnRow.style.display = 'flex';
+            btnRow.style.justifyContent = 'flex-end';
+            btnRow.style.gap = '8px';
+            const btnCancel = document.createElement('button');
+            btnCancel.type = 'button';
+            btnCancel.textContent = (window._hsI18n && window._hsI18n.cancel) || 'Hủy';
+            if (!btnCancel.textContent || btnCancel.textContent === 'cancel') btnCancel.textContent = 'Hủy';
+            btnCancel.style.padding = '8px 16px';
+            btnCancel.style.borderRadius = '8px';
+            btnCancel.style.border = '1px solid #e5e7eb';
+            btnCancel.style.background = 'white';
+            btnCancel.style.fontSize = '13px';
+            btnCancel.style.cursor = 'pointer';
+            btnCancel.addEventListener('click', () => overlay.remove());
+            const btnDelete = document.createElement('button');
+            btnDelete.type = 'button';
+            btnDelete.textContent = base;
+            btnDelete.style.padding = '8px 16px';
+            btnDelete.style.borderRadius = '8px';
+            btnDelete.style.background = '#dc2626';
+            btnDelete.style.color = 'white';
+            btnDelete.style.border = '1px solid #dc2626';
+            btnDelete.style.fontSize = '13px';
+            btnDelete.style.fontWeight = '500';
+            btnDelete.style.cursor = 'pointer';
+            btnRow.appendChild(btnCancel); btnRow.appendChild(btnDelete);
+            box.appendChild(headRow); box.appendChild(btnRow);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            // ESC to close
+            const escHandler = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+            document.addEventListener('keydown', escHandler);
+            // Khi bấm Xóa mới thực hiện xóa
+            btnDelete.addEventListener('click', () => {
+                overlay.remove();
+                document.removeEventListener('keydown', escHandler);
+                const items2 = document.querySelectorAll('.fi-fo-repeater-item');
+                const target2 = items2[self.selectedIndex];
+                if (!target2) return;
+                let deletedViaWire = false;
+                const tryWireDelete = (wireObj) => {
+                    try {
+                        let d = wireObj.get('data.hotspots');
+                        if (!d) d = wireObj.get('hotspots');
+                        if (!d && wireObj.data) d = wireObj.data.hotspots;
+                        if (!d) return false;
+                        if (Array.isArray(d)) {
+                            if (d.length > self.selectedIndex) {
+                                d.splice(self.selectedIndex, 1);
+                                wireObj.set('data.hotspots', d);
+                                return true;
+                            }
+                        } else if (typeof d === 'object') {
+                            const keys = Object.keys(d);
+                            const k = keys[self.selectedIndex];
+                            if (k !== undefined) {
+                                delete d[k];
+                                wireObj.set('data.hotspots', {...d});
+                                return true;
+                            }
+                        }
+                    } catch(e) {}
+                    return false;
+                };
+                try {
+                    if (self.$wire) deletedViaWire = tryWireDelete(self.$wire);
+                    if (!deletedViaWire && window.Livewire) {
+                        const liveEl = document.querySelector('[wire\\:id]');
+                        if (liveEl && window.Livewire.find) {
+                            try {
+                                const comp = window.Livewire.find(liveEl.getAttribute('wire:id'));
+                                if (comp) deletedViaWire = tryWireDelete(comp);
+                            } catch(e) {}
+                        }
+                    }
+                } catch(e) { console.log('wire delete failed', e); }
+                if (deletedViaWire) {
+                    self.showToastMessage('Đã xóa Hotspot ' + (self.selectedIndex+1));
+                    setTimeout(() => { self.refresh(); self.updateDots(); if (self.selectedIndex >= document.querySelectorAll('.fi-fo-repeater-item').length) self.selectedIndex = Math.max(0, document.querySelectorAll('.fi-fo-repeater-item').length - 1); }, 300);
+                    return;
+                }
+                const btn2 = target2.querySelector('button');
+                if (btn2) btn2.click();
+            });
+        }
     }"
-     class="space-y-2 mb-4"
+      class="space-y-2 mb-4"
     x-init="if (!panoramaUrl) { const cached = sessionStorage.getItem('hs_panoramaUrl_' + window.location.pathname); if (cached) panoramaUrl = cached; } else { sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, panoramaUrl); } $watch('panoramaUrl', v => { if (v) sessionStorage.setItem('hs_panoramaUrl_' + window.location.pathname, v); })"
 >
     <div wire:ignore>
@@ -440,27 +551,8 @@ window._hsI18n = @js([
     @endif
     </div>
 
-    <!-- Delete Confirm Modal - đẹp -->
-    <div x-show="showDeleteModal" x-cloak data-hs-modal x-transition.opacity style="position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;min-width:100vw;min-height:100vh;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;margin:0 !important;inset:0;" @click.self="showDeleteModal = false">
-        <div style="background:white;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
-            <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
-                <div style="width:40px;height:40px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;color:#dc2626;flex-shrink:0;">
-                    <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                </div>
-                <div>
-                    <h3 style="margin:0;font-weight:600;color:#111827;font-size:15px;" x-text="((window._hsI18n && window._hsI18n.delete) || 'Xóa') + ' ' + ((window._hsI18n && window._hsI18n.hotspot) || 'Hotspot') + ' ' + (selectedIndex+1) + '?'"></h3>
-                    <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">Bạn có chắc muốn xóa hotspot này? Hành động không thể hoàn tác.</p>
-                </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <button type="button" @click="showDeleteModal = false" style="padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:white;font-size:13px;cursor:pointer;">Hủy</button>
-                <button type="button" @click="executeDelete()" style="padding:8px 16px;border-radius:8px;background:#dc2626;color:white;border:1px solid #dc2626;font-size:13px;font-weight:500;cursor:pointer;">{{ __('forms.delete') }}</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast -->
-    <div x-show="showToast" x-transition x-cloak data-hs-toast style="position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.2);z-index:9999;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;">
+    <!-- Toast fallback (Filament native sẽ tự teleport, không lệch) -->
+    <div x-show="showToast" x-transition x-cloak data-hs-toast style="position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.2);z-index:99999;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;">
         <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         <span x-text="toastMessage"></span>
     </div>

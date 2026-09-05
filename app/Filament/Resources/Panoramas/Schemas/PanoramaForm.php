@@ -232,7 +232,13 @@ class PanoramaForm
                             ->addActionLabel(fn () => __('forms.add_hotspot') !== 'forms.add_hotspot' ? __('forms.add_hotspot') : 'Thêm hotspot')
                             ->reorderable(false)
                             ->deletable(true)
-                            ->deleteAction(fn ($action) => $action->requiresConfirmation(false))
+                            ->deleteAction(fn ($action) => $action
+                                ->requiresConfirmation()
+                                ->modalHeading(fn () => __('forms.delete_hotspot_heading'))
+                                ->modalDescription(fn () => __('forms.delete_hotspot_desc'))
+                                ->modalSubmitActionLabel(fn () => __('forms.delete'))
+                                ->modalCancelActionLabel(fn () => __('forms.cancel'))
+                            )
                             ->components([
                                 Select::make('target_panorama_id')
                                     ->label(fn () => __('forms.panorama_target'))

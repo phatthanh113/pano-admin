@@ -61,4 +61,7 @@ return [
     'hotspot_upload_first' => 'まず上にパノラマ画像をアップロードしてください。その後、すべてのホットスポットの位置を設定するために共有画像がここに表示されます。',
     'hotspot_header' => 'ホットスポット :index - :target',
     'delete' => '削除',
+    'cancel' => 'キャンセル',
+    'delete_hotspot_heading' => 'ホットスポットを削除しますか？',
+    'delete_hotspot_desc' => 'このホットスポットを削除してもよろしいですか？この操作は元に戻せません。',
 ];

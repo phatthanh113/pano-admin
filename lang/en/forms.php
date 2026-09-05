@@ -61,4 +61,7 @@ return [
     'hotspot_upload_first' => 'Please upload a Panorama image above first, then the shared image will appear here for you to click and set positions for all hotspots.',
     'hotspot_header' => 'Hotspot :index - :target',
     'delete' => 'Delete',
+    'cancel' => 'Cancel',
+    'delete_hotspot_heading' => 'Delete Hotspot?',
+    'delete_hotspot_desc' => 'Are you sure you want to delete this hotspot? This action cannot be undone.',
 ];

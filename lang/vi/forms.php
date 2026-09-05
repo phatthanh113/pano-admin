@@ -61,4 +61,7 @@ return [
     'hotspot_upload_first' => 'Hãy upload ảnh Panorama ở trên trước, sau đó ảnh chung sẽ hiện ở đây để bạn click chọn vị trí cho tất cả hotspot.',
     'hotspot_header' => 'Hotspot :index - :target',
     'delete' => 'Xóa',
+    'cancel' => 'Hủy',
+    'delete_hotspot_heading' => 'Xóa Hotspot?',
+    'delete_hotspot_desc' => 'Bạn có chắc muốn xóa hotspot này? Hành động không thể hoàn tác.',
 ];
