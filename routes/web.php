@@ -81,12 +81,43 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
             $needsLink = true;
         } else {
             $output .= "\n[storage:link] exists as file/dir not link";
-            @unlink($link);
+            try {
+                if (is_dir($link)) {
+                    \Illuminate\Support\Facades\File::deleteDirectory($link);
+                    $output .= " deleted dir";
+                } else {
+                    @unlink($link);
+                }
+            } catch (\Throwable $e) {
+                $output .= " unlink error: ".$e->getMessage();
+            }
             $needsLink = true;
         }
         if ($needsLink) {
-            Artisan::call('storage:link');
-            $output .= "\n[storage:link] recreated: ".Artisan::output();
+            try {
+                Artisan::call('storage:link');
+                $output .= "\n[storage:link] recreated: ".Artisan::output();
+            } catch (\Throwable $e) {
+                $output .= "\n[storage:link] failed: ".$e->getMessage();
+                // InfinityFree không cho symlink, fallback copy thư mục
+                try {
+                    $src = storage_path('app/public');
+                    $dst = public_path('storage');
+                    if (!is_dir($dst)) @mkdir($dst, 0755, true);
+                    // copy panoramas/extra
+                    $srcExtra = $src.'/panoramas/extra';
+                    $dstExtra = $dst.'/panoramas/extra';
+                    if (is_dir($srcExtra)) {
+                        if (!is_dir($dstExtra)) @mkdir($dstExtra, 0755, true);
+                        foreach (glob($srcExtra.'/*') as $file) {
+                            if (is_file($file)) @copy($file, $dstExtra.'/'.basename($file));
+                        }
+                        $output .= "\n[fallback copy] copied ".count(glob($srcExtra.'/*'))." files to public/storage";
+                    }
+                } catch (\Throwable $e2) {
+                    $output .= "\n[fallback copy error] ".$e2->getMessage();
+                }
+            }
         }
         // đảm bảo folder panoramas/extra tồn tại
         $extraPath = storage_path('app/public/panoramas/extra');
