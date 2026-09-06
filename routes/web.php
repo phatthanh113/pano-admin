@@ -72,6 +72,15 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
         } else {
             $output .= "\n[storage:link] already exists";
         }
+        // đảm bảo folder panoramas/extra tồn tại
+        $extraPath = storage_path('app/public/panoramas/extra');
+        if (!is_dir($extraPath)) {
+            @mkdir($extraPath, 0755, true);
+            $output .= "\n[mkdir] created ".$extraPath;
+        }
+        $output .= "\n[extra dir exists] ".(is_dir($extraPath) ? 'yes' : 'no');
+        $output .= " writable: ".(is_writable($extraPath) ? 'yes' : 'no');
+        $output .= " files: ".json_encode(array_slice(\Illuminate\Support\Facades\Storage::disk('public')->files('panoramas/extra'), 0, 3));
     } catch (\Throwable $e) {
         $output .= "\n[storage:link error] ".$e->getMessage();
     }
