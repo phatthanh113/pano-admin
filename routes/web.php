@@ -73,6 +73,31 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
 Route::get('/run-migrate', $migrateHandler)->name('migrate.run');
 Route::get('/admin/run-migrate', $migrateHandler);
 
+Route::get('/test-extra-save', function (\Illuminate\Http\Request $request) {
+    $token = $request->query('token');
+    $secret = env('MIGRATE_SECRET', 'pano-migrate-2026');
+    if (!auth()->check() && $token !== $secret) {
+        abort(403, 'Thêm ?token='.$secret.' hoặc đăng nhập admin');
+    }
+    try {
+        $p = \App\Models\Panorama::first();
+        if (!$p) return response()->json(['error' => 'No panorama found'], 404);
+        $old = $p->extra_images;
+        // thử set và save
+        $p->extra_images = ['panoramas/extra/test-diag.jpg'];
+        $p->save();
+        $check = \App\Models\Panorama::find($p->id)->extra_images;
+        // restore
+        $p->extra_images = $old;
+        $p->save();
+        $storageOk = \Illuminate\Support\Facades\Storage::disk('public')->exists('panoramas/extra') || @mkdir(storage_path('app/public/panoramas/extra'), 0755, true);
+        $writable = is_writable(storage_path('app/public/panoramas/extra')) ? 'yes' : 'no';
+        return response()->json(['success' => true, 'id' => $p->id, 'old' => $old, 'after_test' => $check, 'storage_writable' => $writable, 'hasColumn' => \Illuminate\Support\Facades\Schema::hasColumn('panoramas', 'extra_images')]);
+    } catch (\Throwable $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage(), 'trace' => substr($e->getTraceAsString(), 0, 2000)], 500);
+    }
+});
+
 Route::get('/', function () {
     $panoIndex = public_path('pano/index.html');
     if (file_exists($panoIndex)) {
