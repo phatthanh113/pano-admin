@@ -89,14 +89,19 @@ class PanoramaForm
                             ->label(fn () => __('forms.extra_images') !== 'forms.extra_images' ? __('forms.extra_images') : 'Ảnh chi tiết thêm')
                             ->helperText(fn () => __('forms.extra_images_help'))
                             ->multiple()
+                            ->panelLayout('grid')
                             ->reorderable()
                             ->appendFiles()
                             ->image()
+                            ->imagePreviewHeight('150')
+                            ->panelAspectRatio('16:9')
                             ->disk('public')
                             ->visibility('public')
                             ->directory('panoramas/extra')
-                            ->maxSize(5120)
-                            ->imagePreviewHeight('120')
+                            ->maxSize(10240)
+                            ->acceptedFileTypes(['image/jpeg','image/png','image/webp'])
+                            ->openable()
+                            ->downloadable()
                             ->columnSpanFull(),
                     ]),
 
