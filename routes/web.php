@@ -65,12 +65,28 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
         }
     }
     try {
-        // đảm bảo storage link tồn tại (InfinityFree hay mất link sau deploy)
-        if (!is_link(public_path('storage')) && !file_exists(public_path('storage'))) {
-            Artisan::call('storage:link');
-            $output .= "\n[storage:link] ".Artisan::output();
+        $link = public_path('storage');
+        $needsLink = false;
+        if (is_link($link)) {
+            $target = @readlink($link);
+            $output .= "\n[storage:link] existing target: ".$target;
+            if (!$target || !is_dir($target) || !file_exists($link.'/panoramas/extra/01M1VCSM759DM7PHZMPJY8Q158.jpg')) {
+                @unlink($link);
+                $output .= "\n[storage:link] removed broken link";
+                $needsLink = true;
+            } else {
+                $output .= "\n[storage:link] OK";
+            }
+        } elseif (!file_exists($link)) {
+            $needsLink = true;
         } else {
-            $output .= "\n[storage:link] already exists";
+            $output .= "\n[storage:link] exists as file/dir not link";
+            @unlink($link);
+            $needsLink = true;
+        }
+        if ($needsLink) {
+            Artisan::call('storage:link');
+            $output .= "\n[storage:link] recreated: ".Artisan::output();
         }
         // đảm bảo folder panoramas/extra tồn tại
         $extraPath = storage_path('app/public/panoramas/extra');
@@ -81,6 +97,7 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
         $output .= "\n[extra dir exists] ".(is_dir($extraPath) ? 'yes' : 'no');
         $output .= " writable: ".(is_writable($extraPath) ? 'yes' : 'no');
         $output .= " files: ".json_encode(array_slice(\Illuminate\Support\Facades\Storage::disk('public')->files('panoramas/extra'), 0, 3));
+        $output .= " public_exists check: ".(file_exists(public_path('storage/panoramas/extra/01M1VCSM759DM7PHZMPJY8Q158.jpg')) ? 'yes' : 'no');
     } catch (\Throwable $e) {
         $output .= "\n[storage:link error] ".$e->getMessage();
     }
