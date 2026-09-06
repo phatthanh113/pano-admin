@@ -118,6 +118,38 @@ Route::get('/test-extra-save', function (\Illuminate\Http\Request $request) {
     }
 });
 
+Route::get('/list-extra', function (\Illuminate\Http\Request $request) {
+    $token = $request->query('token');
+    $secret = env('MIGRATE_SECRET', 'pano-migrate-2026');
+    if (!auth()->check() && $token !== $secret) {
+        abort(403, 'Thêm ?token='.$secret);
+    }
+    $disk = \Illuminate\Support\Facades\Storage::disk('public');
+    $files = $disk->files('panoramas/extra');
+    $details = [];
+    foreach ($files as $f) {
+        $full = storage_path('app/public/'.$f);
+        $details[] = [
+            'file' => $f,
+            'exists' => file_exists($full) ? 'yes' : 'no',
+            'size' => file_exists($full) ? filesize($full) : null,
+            'size_kb' => file_exists($full) ? round(filesize($full)/1024) : null,
+            'url' => $disk->url($f),
+            'public_exists' => file_exists(public_path('storage/'.$f)) ? 'yes' : 'no',
+        ];
+    }
+    $extraPath = storage_path('app/public/panoramas/extra');
+    $extraExists = is_dir($extraPath) ? 'yes' : 'no';
+    $extraWritable = is_writable($extraPath) ? 'yes' : (is_dir(dirname($extraPath)) && is_writable(dirname($extraPath)) ? 'parent writable' : 'no');
+    $tmpPath = storage_path('app/livewire-tmp');
+    $tmpExists = is_dir($tmpPath) ? 'yes' : 'no';
+    $tmpWritable = is_writable($tmpPath) ? 'yes' : (is_dir(dirname($tmpPath)) && is_writable(dirname($tmpPath)) ? 'parent writable' : 'no');
+    // framework livewire tmp alternative
+    $tmpPath2 = storage_path('framework/livewire-tmp');
+    $tmp2Exists = is_dir($tmpPath2) ? 'yes' : 'no';
+    return response()->json(['files' => $details, 'extra_dir' => $extraExists, 'extra_writable' => $extraWritable, 'livewire_tmp' => $tmpExists, 'livewire_writable' => $tmpWritable, 'livewire_tmp2' => $tmp2Exists, 'check_file' => $request->query('file') ? ['exists' => $disk->exists($request->query('file')), 'size' => $disk->exists($request->query('file')) ? $disk->size($request->query('file')) : null] : null]);
+});
+
 Route::get('/', function () {
     $panoIndex = public_path('pano/index.html');
     if (file_exists($panoIndex)) {
