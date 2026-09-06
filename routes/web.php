@@ -65,6 +65,17 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
         }
     }
     try {
+        // đảm bảo storage link tồn tại (InfinityFree hay mất link sau deploy)
+        if (!is_link(public_path('storage')) && !file_exists(public_path('storage'))) {
+            Artisan::call('storage:link');
+            $output .= "\n[storage:link] ".Artisan::output();
+        } else {
+            $output .= "\n[storage:link] already exists";
+        }
+    } catch (\Throwable $e) {
+        $output .= "\n[storage:link error] ".$e->getMessage();
+    }
+    try {
         Artisan::call('optimize:clear');
         $output .= "\n".Artisan::output();
     } catch (\Throwable $e) {}
