@@ -97,23 +97,34 @@ $migrateHandler = function (\Illuminate\Http\Request $request) {
             try {
                 Artisan::call('storage:link');
                 $output .= "\n[storage:link] recreated: ".Artisan::output();
+                $output .= " target: ".@readlink(public_path('storage'));
             } catch (\Throwable $e) {
                 $output .= "\n[storage:link] failed: ".$e->getMessage();
-                // InfinityFree không cho symlink, fallback copy thư mục
+            }
+            // Kiểm tra lại public_exists sau khi tạo link, nếu vẫn no thì fallback copy toàn bộ storage/app/public -> public/storage (InfinityFree không cho symlink)
+            if (!file_exists(public_path('storage/panoramas/extra/01M1VCSM759DM7PHZMPJY8Q158.jpg')) && !file_exists(public_path('storage/panoramas/01M15SP639DH73YYM79CQXSDBA.jpg'))) {
                 try {
                     $src = storage_path('app/public');
                     $dst = public_path('storage');
+                    $output .= "\n[fallback copy] public_exists still no, copying all storage/app/public -> public/storage";
                     if (!is_dir($dst)) @mkdir($dst, 0755, true);
-                    // copy panoramas/extra
-                    $srcExtra = $src.'/panoramas/extra';
-                    $dstExtra = $dst.'/panoramas/extra';
-                    if (is_dir($srcExtra)) {
-                        if (!is_dir($dstExtra)) @mkdir($dstExtra, 0755, true);
-                        foreach (glob($srcExtra.'/*') as $file) {
-                            if (is_file($file)) @copy($file, $dstExtra.'/'.basename($file));
+                    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($src, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+                    $copied = 0;
+                    foreach ($iterator as $file) {
+                        $rel = substr($file->getPathname(), strlen($src)+1);
+                        $target = $dst.'/'.$rel;
+                        if ($file->isDir()) {
+                            if (!is_dir($target)) @mkdir($target, 0755, true);
+                        } else {
+                            $dir = dirname($target);
+                            if (!is_dir($dir)) @mkdir($dir, 0755, true);
+                            if (!file_exists($target)) {
+                                @copy($file->getPathname(), $target);
+                                $copied++;
+                            }
                         }
-                        $output .= "\n[fallback copy] copied ".count(glob($srcExtra.'/*'))." files to public/storage";
                     }
+                    $output .= " copied $copied files";
                 } catch (\Throwable $e2) {
                     $output .= "\n[fallback copy error] ".$e2->getMessage();
                 }
